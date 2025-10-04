@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+redis
+rq
+streamlit
+supabase
+python-dotenv
+requests
