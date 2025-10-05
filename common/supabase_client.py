@@ -8,6 +8,6 @@ def get_client(url: str, key: str) -> Client:
     supabase: Client = create_client(url, key)
     return supabase
 
-if __name__ == 'main':
+if __name__ == '__main__':
     url: str = os.environ.get("SUPABASE_URL")
     key: str = os.environ.get("SUPABASE_KEY")

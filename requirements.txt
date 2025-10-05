@@ -6,3 +6,4 @@ streamlit
 supabase
 python-dotenv
 requests
+python-multipart

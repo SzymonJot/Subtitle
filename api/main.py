@@ -1,6 +1,6 @@
 # uvicorn - server to post and run 
 # uvicorn api.main:app --reload  
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile
 '''
 Add CORS middleware layer 
 It runs before each request 
@@ -13,6 +13,8 @@ from common.supabase_client import get_client
 from dotenv import load_dotenv
 import os
 import uuid
+from worker.worker import run_job
+
 '''
 docker run --name redis -p -q 6379:6379 redis:7-alpine
 docker ps
@@ -34,30 +36,35 @@ app = FastAPI()
 #     allow_headers = ["*"]
 # )
 
-SB = get_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
+SB = get_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_KEY"])
 RQ = Queue("mvp_queue", connection=Redis.from_url(os.environ["REDIS_URL"]))
 
 @app.post("/jobs")
-async def create_job(file: int):
+async def create_job(file: UploadFile):
+    if not file.filename.lower().endswith(".srt"):
+        raise HTTPException(400, "Only .srt files")
     job_id = str(uuid.uuid4())
-    (
-    SB.table("jobs")
-    .insert({
+    raw = await file.read()
+    in_path = f"uploads/{job_id}"
+    SB.storage.from_("uploads").upload(in_path, raw, {"content-type": "text/plain"})
+    SB.table("jobs").insert({
         'id': job_id,
-        'input_path': 'a',
+        'input_path': in_path,
         'status': 'queued'
-    })
-    .execute()
-    )
+    }).execute()
+    
+    run_job(job_id)
     return {"job_id": job_id}
 
 @app.get("/jobs")
 def get_job(job_id: str):
-    pass
+    return SB.table('jobs').select('*').eq('id', job_id).execute().data[0]
+           
 
 @app.get("/")
 def root():
     return {"Apple"}
+
 
 
 
