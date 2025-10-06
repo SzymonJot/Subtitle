@@ -7,6 +7,7 @@ import html
 import regex as re
 from collections import Counter, defaultdict
 import unicodedata as ud
+from typing import list, dict
 
 DEEPL_AUTH_KEY  = os.getenv('DEEPL_AUTH_KEY')
 
@@ -350,6 +351,48 @@ def deck_size_for_target(lemma_count: dict, target_pct: float, allowed_pos: set 
     # If target not met (e.g., tp > achievable due to filters), return max
     return k, covered_tokens / total_tokens
 
+def pick_shortest_by_lemma(
+    final: Dict[str, Dict[str, List[str]]],
+    prefer_inflected: bool = True,      # prefer forms where word_form != lemma
+    measure: str = "tokens"             # "tokens" or "chars"
+    ) -> List[Tuple[str, str, str]]:
+    """
+    Returns a list of (lemma, chosen_word_form, shortest_example_sentence).
+    Chooses per lemma the word form whose shortest example is the shortest.
+    """
+
+    def key_for(s: str):
+        # primary: token count, secondary: char length
+        return (len(s.split()), len(s)) if measure == "tokens" else (len(s),)
+
+    results = {}
+
+    for lemma, forms in final.items():
+        forms['to_study'] = {}
+        if not forms:
+            continue
+
+        candidates = []
+        for form, sents in forms['examples'].items():
+            if not sents:
+                continue
+            shortest_sent_for_form = min(sents, key=key_for)
+
+            # Rank: 0 = inflected preferred, 1 = base (if prefer_inflected)
+            rank = 0 if (prefer_inflected and form != lemma) else 1
+            candidates.append((rank, key_for(shortest_sent_for_form), form, shortest_sent_for_form))
+
+        if not candidates:
+            continue
+        
+        # Choose minimal by (rank, length-key)
+        _, _, best_form, best_sentence = min(candidates, key=lambda x: (x[0], x[1]))
+
+        forms['to_study']['word'] = best_form
+        forms['to_study']['sentence'] = best_sentence
+
+    return final
+
 if __name__ == "__main__":
     lemma_count = {
         'ADJ': {
@@ -394,6 +437,9 @@ if __name__ == "__main__":
                                  
     }
         
+
+
+
     # Fetch X top study
     study_list = select_top_quota(lemma_count, 200)
     # Translate

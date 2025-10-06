@@ -202,47 +202,7 @@ def get_lemma_count(words, lemmatized):
         counts[upos][lemma] += 1
     return {pos: dict(cnt) for pos, cnt in counts.items()}
 
-def pick_shortest_by_lemma(
-    final: Dict[str, Dict[str, List[str]]],
-    prefer_inflected: bool = True,      # prefer forms where word_form != lemma
-    measure: str = "tokens"             # "tokens" or "chars"
-) -> List[Tuple[str, str, str]]:
-    """
-    Returns a list of (lemma, chosen_word_form, shortest_example_sentence).
-    Chooses per lemma the word form whose shortest example is the shortest.
-    """
 
-    def key_for(s: str):
-        # primary: token count, secondary: char length
-        return (len(s.split()), len(s)) if measure == "tokens" else (len(s),)
-
-    results = {}
-
-    for lemma, forms in final.items():
-        forms['to_study'] = {}
-        if not forms:
-            continue
-
-        candidates = []
-        for form, sents in forms['examples'].items():
-            if not sents:
-                continue
-            shortest_sent_for_form = min(sents, key=key_for)
-
-            # Rank: 0 = inflected preferred, 1 = base (if prefer_inflected)
-            rank = 0 if (prefer_inflected and form != lemma) else 1
-            candidates.append((rank, key_for(shortest_sent_for_form), form, shortest_sent_for_form))
-
-        if not candidates:
-            continue
-        
-        # Choose minimal by (rank, length-key)
-        _, _, best_form, best_sentence = min(candidates, key=lambda x: (x[0], x[1]))
-
-        forms['to_study']['word'] = best_form
-        forms['to_study']['sentence'] = best_sentence
-
-    return final
 
 def get_sentence_example(lematized, sentences):
     res = defaultdict(list)
@@ -301,9 +261,9 @@ def run_stage1_data_generation(file_content:str):
     lematized = lemmatize_words(words_clean)
     lemma_count = get_lemma_count(words_clean, lematized)
     final_with_sentences = get_sentence_example(lematized, sentence_clean)
-    final_with_picked_sentences = pick_shortest_by_lemma(final_with_sentences, prefer_inflected=True, measure="tokens")
+
     stage1_data = {
-        'episode_data_processed':final_with_picked_sentences,
+        'episode_data_processed':final_with_sentences,
         'lemma_count': lemma_count,
         'grams': grams,
         'file_hash': file_hash
