@@ -30,6 +30,10 @@ class LemmaBase(BaseModel):
     forms: List[str]
     examples: Dict[str, List[str]]
     model_config = ConfigDict(extra="forbid")
+    
+    forms_freq: Dict[str, int] = Field(default_factory=dict)  # per-form token counts
+    token_count: int = 0                                       # sum(forms_freq.values())
+    type_count: int = 0                                        # len(forms)
 
 class LemmaSV(LemmaBase):
     lang: Literal["sv"]
@@ -40,6 +44,14 @@ class LemmaSV(LemmaBase):
 
 LemmaEntry = Union[LemmaSV] 
 
+class CoverageStats(BaseModel):
+    total_tokens: int
+    total_types: int
+    coverage_tokens: float          # 0..1
+    coverage_types: float           # 0..1
+    coverage_lemmas: Optional[float] = None
+
 class EpisodeDataProcessed(BaseModel):
     episode_data_processed: Dict[str, LemmaEntry]
+    coverage: Optional[CoverageStats] = None    # ← NEW optional
     model_config = ConfigDict(extra="forbid")

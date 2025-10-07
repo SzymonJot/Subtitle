@@ -64,9 +64,6 @@ def run_job(job_id: str):
             'error': traceback.format_exc()[:8000]
         }).eq('id', job_id).execute()
         raise
-        
-
-
 
 if __name__ == '__main__':
     run_job('04ee7a5e-63e4-4a8b-ab36-af23a5bb34e7')

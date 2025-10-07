@@ -1,19 +1,9 @@
 import regex as re
 import unicodedata
 from collections import defaultdict
-from nltk.util import ngrams
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-import nltk
 from  pprint import pprint
 from collections import Counter
-import matplotlib.pyplot as plt
-import genanki
-from deep_translator import GoogleTranslator
-import stanza
 import os
-import deepl
-import hashlib, html
 from typing import Dict, List, Tuple
 import time, unicodedata as ud
 from dotenv import load_dotenv
