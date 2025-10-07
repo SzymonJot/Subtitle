@@ -2,74 +2,122 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 import regex as re
-from nlp.content.content_adapter import SentenceRec
+from nlp.lexicon.schema import SentenceRec
+from nlp.lexicon.schema import LemmaBase, NLPToken
 
 '''
 {
   "<lemma>": {
-    "Artikel": "en|ett|null",
-    "POS": "NOUN|ADJ|VERB|...",
-    "Forms": ["<form1>", "<form2>", "..."],               
+    "pos": "NOUN|ADJ|VERB|...",
+    "forms": ["<form1>", "<form2>", "..."],               
     "examples": { "<form>": ["sent1", "sent2", "..."] },  
-    "feats": { "Gender": "Com|Neut", "Definite": "Ind|Def" }
+    "feats": { "Gegendernder": "Com|Neut", "definite": "Ind|Def" }
   }
 }
 '''
-
-@dataclass
-class NLPToken:
-    form: str                     # surface, lowercased
-    lemma: str                    # lemma (or same as form)
-    pos: Optional[str] = None     # UPOS/XPOS
-    feats: Dict[str, Any] = None  # language-specific: {"artikel":"en", "gender":"utrum", ...}
-
 
 class LangAdapter(ABC):
     code: str
 
     #--------------------- 1) NLP -------------------
     @abstractmethod    
-    def tokenize(self, words_clean) -> List[NLPToken]:
+    def tokenize(self, words_clean: List[str]) -> List[NLPToken]:
         """
         It will take words and do smth like nlp = stanza.Pipeline("sv", processors="tokenize,pos,lemma") and 
         then build NLPToken objects from it.
-        Key: Cleaned word
+        Key: Cleaned wordSo 
         Value: nlp(word)
         """
         raise NotImplementedError
     
     #------------------- 2) Lexicon -------------------
     @abstractmethod    
-    def build_dictionary_from_tokens(self, tokens: list[NLPToken]) -> Dict[str, Dict[str, Any]]:
+    def build_dictionary_from_tokens(self, tokens: list[NLPToken]) -> Dict[str, LemmaBase]:
         """
         It will build dict with surface word and values depending on language.
         Returned: lexicon.
         """
         raise NotImplementedError
-
-    @staticmethod
-    def attach_examples(sentences: SentenceRec, lexicon:Dict[str, Dict[str, Any]] ) -> Dict[str, Dict[str, Any]]:
-        ''' 
-        Per inflected word get all sentences where it was used.
-        {Lemma {
-        Inflected1: [],
-        Inflected2: []
-        }}
-        '''
-        # We know what sentence is and what required in lexicon
-        # I can code it actually
-        return
     
+    @staticmethod
+    def attach_examples(sentences: List[SentenceRec], lexicon:Dict[str, LemmaBase] ) -> Dict[str, LemmaBase]:
+        """
+        Associates example sentences with each inflected word found in the given sentences.
+        Args:
+            sentences (SentenceRec): Iterable of sentence objects containing text.
+            lexicon (Dict[str, LemmaBase]): Dictionary mapping inflected words to their lemma data.
+        Returns:
+            Dict[str, LemmaBase]: Updated lexicon with example sentences attached to each inflected word.
+        """
+
+        for sentence in sentences:
+            words = re.findall(r'\w+', sentence.text)
+            for word in words:
+                word_lower = word.lower()
+                for lemma, lemma_data in lexicon.items():
+                    lower_forms_set = {form.lower() for form in lemma_data.forms}
+                    if word_lower in lower_forms_set:
+                        lemma_data.examples.setdefault(word, []).append(sentence.text)
+    
+    @staticmethod
+    def finalize_lexicon(lexicon:Dict[str, LemmaBase]) -> Dict[str, LemmaBase]:
+        """
+        Finalizes the lexicon by ensuring json seriability.
+        Args:
+            lexicon (Dict[str, LemmaBase]): Dictionary mapping inflected words to their lemma data.
+        """
+    
+        return {k: v.model_dump() for k, v in lexicon.items()}
+
 if __name__ == '__main__':
 
+    class DummyLangAdapter(LangAdapter):
+        def tokenize(self, words_clean: List[str]) -> List[NLPToken]:
+            # Dummy implementation
+            return []
+
+        def build_dictionary_from_tokens(self, tokens: list[NLPToken]) -> Dict[str, LemmaBase]:
+            # Dummy implementation
+            return {}
+
     sentences = [
-                'Och andas ut.',
-                'Jag andas in lite också, om det är okej.',
-                'Ge mig en enda anledning att leka.',
-                'Fanny och Alexander!'
-                'Så det blir jobbigt för andra.',
-                'Andra veckan är det familjeliv.'
+                SentenceRec('Fanny och Alexander', {}),
+                SentenceRec('Så det blir jobbigt för andra och Fanny.', {}),
+                SentenceRec('Andra veckan är det familjeliv.', {})
     ]
+
+    words = [
+        'Fanny', 'och', 'Alexander', 'Så', 'det', 'blir', 'jobbigt', 'för', 'andra', 
+        'Andra', 'veckan', 'är', 'det', 'familjeliv'
+    ]
+
+    lexicon = {
+        "fanny": LemmaBase(
+            pos="NOUN",
+            forms=["Fanny"],
+            examples={}
+        ),
+        "alexander": LemmaBase(
+            pos="NOUN",
+            forms=["Alexander"],
+            examples={}
+        ),
+        "andra": LemmaBase(
+            pos="PRON",
+            forms=["andra", "Andra"],
+            examples={}
+        ),
+        "familjeliv": LemmaBase(
+            pos="NOUN",
+            forms=["familjeliv"],
+            examples={}
+        )
+    }
+
+    lang_adapter = DummyLangAdapter()
+    lang_adapter.attach_examples(sentences,lexicon)
+    print(lexicon)
+
                                                              
     # IDEA
     '''

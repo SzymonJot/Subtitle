@@ -25,6 +25,8 @@ from redis import Redis
 # rq allows for queueing jobs in redis
 # Queue task; Respond; Worker pick it up
 from rq import Queue
+import logging
+logging.basicConfig(level=logging.INFO)
 
 app = FastAPI()
 
@@ -50,7 +52,11 @@ async def create_job(file: UploadFile):
     SB.table("jobs").insert({
         'id': job_id,
         'input_path': in_path,
-        'status': 'queued'
+        'status': 'queued',
+        'params': {
+            'file_type': 'srt',
+            'language': 'sv'
+        }
     }).execute()
     
     run_job(job_id)
