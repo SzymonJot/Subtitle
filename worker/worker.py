@@ -37,9 +37,11 @@ def run_job(job_id: str):
             from nlp.lang.sv.lang_adapter import sv_lang_adapter
             lang_adapter = sv_lang_adapter()
         
-        json_str = process_episode(file_to_process,
-                        adapter,
-                        lang_adapter)
+        json_str = process_episode(
+            file_to_process,
+            adapter,
+            lang_adapter
+        )
       
         # Put it to bucket results
         results_encoded = json_str.encode("utf-8")
@@ -66,4 +68,4 @@ def run_job(job_id: str):
         raise
 
 if __name__ == '__main__':
-    run_job('04ee7a5e-63e4-4a8b-ab36-af23a5bb34e7')
+    run_job('10bec8d0-bc58-4cbb-b4be-a56e52c17b4a')

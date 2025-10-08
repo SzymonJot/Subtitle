@@ -11,6 +11,7 @@ from nlp.lexicon.schema import EpisodeDataProcessed
 import json, unicodedata, time
 from typing import Dict, List
 import logging
+from nlp.lexicon.schema import Stats
 
 load_dotenv()
 
@@ -33,6 +34,10 @@ def process_episode(file_bytes: bytes,
     # optional: words = [w.lower() for w in words]
     logging.info("Cleaned to %d words (%.3fs)", len(words), _t()-t1)
 
+    # 2.5) get words count
+    words_counted: Dict[str,int] = lang_adapter.count_words(words)
+    logging.info("Counted to %d unique words (%.3fs)", len(words_counted), _t()-t1)
+
     # 3) tokenize
     t2 = _t()
     tokens = lang_adapter.tokenize(words)  # dict[str, NLPToken]
@@ -40,7 +45,7 @@ def process_episode(file_bytes: bytes,
 
     # 4) lemmas
     t3 = _t()
-    lexicon: Dict[str, LemmaSV] = lang_adapter.build_dictionary_from_tokens(tokens)
+    lexicon: Dict[str, LemmaSV] = lang_adapter.build_dictionary_from_tokens(tokens, words_counted)
     logging.info("Built lexicon with %d lemmas (%.3fs)", len(lexicon), _t()-t3)
 
     # 5) examples (cap per lemma inside the method)
@@ -51,7 +56,15 @@ def process_episode(file_bytes: bytes,
     # 6) finalize → JSON bytes (stable order)
     t5 = _t()
     # Option A: wrap and let Pydantic do the JSON
-    payload = EpisodeDataProcessed(episode_data_processed=lexicon)
+    payload = EpisodeDataProcessed(episode_data_processed=lexicon,
+                                   stats=Stats(
+                                       total_tokens=sum(
+                                           words_counted.values()),
+                                       total_types=len(words_counted),
+                                       total_lemas=len(lexicon)
+                                   )
+                                   )
+
     json_str = payload.model_dump_json(indent=2)  # already JSON-safe
 
     logging.info("Finalized lexicon (%.3fs). Total: %.3fs", _t()-t5, _t()-t0)
@@ -62,7 +75,14 @@ def process_episode(file_bytes: bytes,
 if __name__ == '__main__':
     from pprint import pformat  
     import pickle
-    results = run_stage1_data_generation(read_file('ep1.srt'))
+    from nlp.content.srt_adapter import SRTAdapter
+    from nlp.lang.sv.lang_adapter import sv_lang_adapter
+
+    results = process_episode(
+        open("test/ep1.srt", "rb").read(),
+        adapter = SRTAdapter(),
+        lang_adapter = sv_lang_adapter()
+    )
     # binary snapshot (full fidelity)
     with open('data.pkl', 'wb') as f:
         pickle.dump(results, f)

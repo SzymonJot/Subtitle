@@ -13,6 +13,7 @@ class sv_lang_adapter(LangAdapter):
 
     def tokenize(self, words_clean: List[str]) -> List[NLPToken]:
         # Implement Swedish-specific tokenization logic here
+        words_clean = list(set(words_clean))  # get unique
         tokens = []
         for word in words_clean:
             doc = self.nlp(word)
@@ -33,7 +34,7 @@ class sv_lang_adapter(LangAdapter):
         return tokens
     
 
-    def build_dictionary_from_tokens(self, tokens: list[NLPToken]) -> Dict[str, LemmaSV]:
+    def build_dictionary_from_tokens(self, tokens: list[NLPToken], words_counted: Dict[str,int]) -> Dict[str, LemmaSV]:
         
         # Implement Swedish-specific dictionary building logic here
         # Example: Group tokens by lemma and aggregate forms and features
@@ -45,9 +46,14 @@ class sv_lang_adapter(LangAdapter):
                     forms=[],
                     examples={},
                     artikel=token.other.get('artikel') if token.other else None,
+                    forms_freq={},
                     lang="sv"
                 )
+
             lexicon[token.lemma].forms.append(token.form)
+
+            lexicon[token.lemma].forms_freq[token.form] = words_counted.get(token.form, 0)
+
             lexicon[token.lemma].forms = list(set(lexicon[token.lemma].forms))  # Ensure unique forms
         logging.info(f"Built lexicon with {len(lexicon)} lemmas from {len(tokens)} tokens.")
         return lexicon

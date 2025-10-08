@@ -32,7 +32,7 @@ class LangAdapter(ABC):
     
     #------------------- 2) Lexicon -------------------
     @abstractmethod    
-    def build_dictionary_from_tokens(self, tokens: list[NLPToken]) -> Dict[str, LemmaBase]:
+    def build_dictionary_from_tokens(self, tokens: list[NLPToken], words_counted: Dict[str,int]) -> Dict[str, LemmaBase]:
         """
         It will build dict with surface word and values depending on language.
         Returned: lexicon.
@@ -69,6 +69,23 @@ class LangAdapter(ABC):
     
         return {k: v.model_dump() for k, v in lexicon.items()}
 
+    @staticmethod
+    def count_words(words: List[str]) -> Dict[str, int]:
+        """
+        Counts the occurrences of each word in the provided list.
+        Args:
+            words (List[str]): List of words to be counted.
+        """
+
+        word_count = {}
+        for word in words:
+            word_lower = word.lower()
+            if word_lower in word_count:
+                word_count[word_lower] += 1
+            else:
+                word_count[word_lower] = 1
+        return word_count
+    
 if __name__ == '__main__':
 
     class DummyLangAdapter(LangAdapter):
