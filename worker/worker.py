@@ -5,7 +5,7 @@ import traceback
 import datetime as dt
 import json
 import logging
-from pipeline.pipeline import process_episode
+from pipeline.analysis_pipeline import process_episode
 
 
 SB = get_client(os.environ["SUPABASE_URL"], os.environ['SUPABASE_SERVICE_KEY'])

@@ -18,9 +18,7 @@ load_dotenv()
 def _t():
     return time.perf_counter()
 
-def process_episode(file_bytes: bytes,
-                    adapter,          # srt_adapter
-                    lang_adapter,     # sv_adapter
+def process_episode(analyzed_json: EpisodeDataProcessed,     # sv_adapter
                     max_examples_per_lemma: int = 5) -> bytes:
     t0 = _t()
 
@@ -55,11 +53,11 @@ def process_episode(file_bytes: bytes,
 
     # 6) finalize → JSON bytes (stable order)
     t5 = _t()
-    # Option A: wrap and let Pydantic do the JSON
+    
     payload = EpisodeDataProcessed(episode_data_processed=lexicon,
                                    stats=Stats(
-                                       total_tokens=sum(
-                                           words_counted.values()),
+                                        total_tokens=sum(
+                                        words_counted.values()),
                                        total_types=len(words_counted),
                                        total_lemas=len(lexicon)
                                    )

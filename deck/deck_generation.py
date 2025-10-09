@@ -7,11 +7,14 @@ import html
 import regex as re
 from collections import Counter, defaultdict
 import unicodedata as ud
-from typing import list, dict
 
-DEEPL_AUTH_KEY  = os.getenv('DEEPL_AUTH_KEY')
+from typing import Dict, List, TypedDict, Optional, Tuple
+from nlp.lexicon.schema import EpisodeDataProcessed
+from pipeline.deck_pipeline import BuildDeckRequest
 
-translator = deepl.Translator(DEEPL_AUTH_KEY)
+#DEEPL_AUTH_KEY  = os.getenv('DEEPL_AUTH_KEY')
+
+#translator = deepl.Translator(DEEPL_AUTH_KEY)
 
 _CACHE = {}
 AMBIG = {
@@ -393,62 +396,159 @@ def pick_shortest_by_lemma(
 
     return final
 
+
+
+
+
+class Candidate(TypedDict):
+    lemma: str
+    pos: str
+    forms: List[str]
+    freq: int
+    cov_share: float        # per-lemma coverage share (0..1)
+
+class RankedCandidate(TypedDict):
+    lemma: str
+    pos: str
+    forms: List[str]
+    freq: int
+    cov_share: float
+    score: float
+
+def select_candidates(analyzed_payload: EpisodeDataProcessed, req: BuildDeckRequest) -> List[Candidate]:
+    """
+    Select candidates from analyzed payload based on request filters.
+    """
+    candidates = []
+    lexicon = analyzed_payload.episode_data_processed
+    known_words = set(req.known_words or [])
+    allowed_pos = set(req.allowed_pos or [])
+    for lemma, data in lexicon.items():
+        pos = data.pos
+        if allowed_pos and pos not in allowed_pos:
+            continue
+        if any(form in known_words for form in data.forms):
+            continue
+        candidates.append(Candidate(lemma=lemma, pos=pos, data=data))
+    return candidates
+
+def score_and_rank(candidates: List[Candidate], req: BuildDeckRequest, rng_seed: int) -> List[RankedCandidate]:
+    """
+    Score and rank candidates based on request parameters.
+    """
+    import random
+    rng = random.Random(rng_seed)
+    ranked = []
+    for cand in candidates:
+        score = 0.0
+        if cand.pos == 'NOUN':
+            score += 1.0
+        elif cand.pos == 'VERB':
+            score += 0.8
+        elif cand.pos == 'ADJ':
+            score += 0.5
+        score += len(cand.data.forms) * 0.1
+        score += rng.uniform(0, 0.1)
+        ranked.append(RankedCandidate(candidate=cand, score=score))
+    ranked.sort(key=lambda x: x.score, reverse=True)
+    return ranked
+
+def apply_constraints(ranked: List[RankedCandidate], req: BuildDeckRequest) -> List[RankedCandidate]:
+    """
+    Apply hard constraints from request to the ranked list.
+    """
+    filtered = []
+    pos_counts = {}
+    max_per_pos = req.max_per_pos or {}
+    for item in ranked:
+        pos = item.candidate.pos
+        if pos in max_per_pos:
+            if pos_counts.get(pos, 0) >= max_per_pos[pos]:
+                continue
+            pos_counts[pos] = pos_counts.get(pos, 0) + 1
+        filtered.append(item)
+    return filtered
+
+def pick_until_target(filtered: List[RankedCandidate], req: BuildDeckRequest) -> List[RankedCandidate]:
+    """
+    
+    Pick candidates until target coverage or max count is reached.
+    """
+    picked = []
+    total_coverage = 0.0
+    target_coverage = req.target_coverage or 1.0
+    max_count = req.max_count or len(filtered)
+    for item in filtered:
+        if len(picked) >= max_count:
+            break
+        picked.append(item)
+        total_coverage += item.candidate.cov_share
+        if total_coverage >= target_coverage:
+            break
+    return picked
+
+def translate_selection(selection: List[RankedCandidate], translator, req: BuildDeckRequest) -> List[RankedCandidate]:
+    """
+    Translate the selected candidates using the provided translator.
+    """
+    pass
+
+def assemble_cards(selection: List[RankedCandidate], analyzed_payload: EpisodeDataProcessed, req: BuildDeckRequest) -> List[Dict]:
+    """
+    Assemble card data from the selection and analyzed payload.
+    """
+    pass
+
+def render_export(cards: List[Dict], req: BuildDeckRequest) -> Tuple[bytes, str]:
+    """
+    Render the cards into the requested format and return as bytes.
+    """
+    pass
+
+def collect_stats(cards: List[Dict], analyzed_payload: EpisodeDataProcessed, req: BuildDeckRequest) -> Dict:
+    """
+    Collect statistics about the generated deck.
+    """
+    pass
+
+
 if __name__ == "__main__":
-    lemma_count = {
-        'ADJ': {
-            '140säng': 2,
-            '18årsgräns': 5,
-            'aggressiv': 2
-            },
-        'ADV': {'aggressivitet': 1
-                }
-        }
-    
-    final = {'140säng': {'Artikel': 'ett',
-                        'Forms': {'140säng'},
-                        'POS': 'NOUN',
-                        'examples': {'140säng': ['Om man är under 25 och kollar en 140säng '
-                                                 'då flyttar man hemifrån.']},
-                        'to_study': {'sentence': 'Om man är under 25 och kollar en 140säng '
-                                                 'då flyttar man hemifrån.',
-                                     'word': '140säng'}},
-    '18årsgräns': {'Artikel': 'en',
-                   'Forms': {'18årsgräns'},
-                   'POS': 'NOUN',
-                   'examples': {'18årsgräns': ['Är det inte 18årsgräns på det '
-                                               'här?']},
-                   'to_study': {'sentence': 'Är det inte 18årsgräns på det här?',
-                                'word': '18årsgräns'}},
+    import json,ast
+    srt_path = "data_preview.txt"
 
-    'aggressiv': {'Artikel': None,
-                  'Forms': {'aggressivt', 'aggressiv'},
-                  'POS': 'ADJ',
-                  'examples': {'aggressiv': ['Du är jävligt aggressiv i vanliga '
-                                             'fall.'],
-                               'aggressivt': ['Kör lite aggressivt!']},
-                  'to_study': {'sentence': 'Kör lite aggressivt!',
-                               'word': 'aggressivt'}},
-    'aggressivitet': {'Artikel': 'en',
-                      'Forms': {'aggressivitet'},
-                      'POS': 'NOUN',
-                      'examples': {'aggressivitet': ['Aggressivitet?']},
-                      'to_study': {'sentence': 'Aggressivitet?',
-                                   'word': 'aggressivitet'}},
-                                 
-    }
-        
+    with open(srt_path, "r", encoding="utf-8") as f:
+        srt_content = f.read()
 
+    raw_json_str = ast.literal_eval(srt_content)   
 
+    loaded = json.loads(raw_json_str)
 
-    # Fetch X top study
-    study_list = select_top_quota(lemma_count, 200)
-    # Translate
-    load = translate_load(study_list, final)
-    # Generate deck based on options:
-    # Only words
-    # Words and sentences
-    # Filter out basics
-    # Language for front
-    
-    # Return
+    request = {
+    "episode_id": "bonusfamiljen-s01e01",
+    "analyzed_hash": "c0ffee12-3456-789a-bcde-0123456789ab", #hash from analysis    
+    "target_coverage": 0.92,
+    "max_cards": 120,
+    "include_pos": ["NOUN", "VERB", "ADJ", "ADV"],
+    "exclude_known_lemmas": ["vara", "ha", "och", "att"],
+    "dedupe_sentences": True,
+    "difficulty_scoring": "mixed",
+    "output_format": "anki",
+    "lang_opts": {
+      "sv": {
+        "prefer_modern_lemmas": True,
+        "require_article_for_nouns": True,
+        "min_example_len": 15,
+        "max_example_len": 140
+      }
+    },
+    "build_version": "2025-10-09.b3",
+    "params_schema_version": "v1",
+    "requested_by": "szymon@example.com",
+    "requested_at_iso": "2025-10-09T21:12:00+02:00",
+    "notes": "Smoke test of BuildDeckRequest end-to-end"
+    }   
 
+    req = BuildDeckRequest(**request)
+
+    print(req)
+   
