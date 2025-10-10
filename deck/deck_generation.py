@@ -10,13 +10,11 @@ import unicodedata as ud
 
 from typing import Dict, List, TypedDict, Optional, Tuple
 from nlp.lexicon.schema import EpisodeDataProcessed
-from pipeline.deck_pipeline import BuildDeckRequest
-from deck.schema import Deck, Card, OutputFormat, ExportOptions, BuiltDeck
+from deck.schema import Deck, Card, OutputFormat, ExportOptions, BuiltDeck,BuildDeckRequest
 
 #DEEPL_AUTH_KEY  = os.getenv('DEEPL_AUTH_KEY')
 
 #translator = deepl.Translator(DEEPL_AUTH_KEY)
-
 
 class Candidate(TypedDict):
     lemma: str
@@ -39,8 +37,8 @@ def select_candidates(analyzed_payload: EpisodeDataProcessed, req: BuildDeckRequ
     """
     candidates = []
     lexicon = analyzed_payload.episode_data_processed
-    known_words = set(req.known_words or [])
-    allowed_pos = set(req.allowed_pos or [])
+    known_words = set(req.exclude_known_lemmas or [])
+    allowed_pos = set(req.include_pos or [])
     for lemma, data in lexicon.items():
         pos = data.pos
         if allowed_pos and pos not in allowed_pos:
@@ -152,7 +150,7 @@ if __name__ == "__main__":
     "analyzed_hash": "c0ffee12-3456-789a-bcde-0123456789ab", #hash from analysis    
     "target_coverage": 0.92,
     "max_cards": 120,
-    "include_pos": ["NOUN", "VERB", "ADJ", "ADV"],
+    "include_pos": ["NOUN"],
     "exclude_known_lemmas": ["vara", "ha", "och", "att"],
     "dedupe_sentences": True,
     "difficulty_scoring": "mixed",
@@ -171,8 +169,12 @@ if __name__ == "__main__":
     "requested_at_iso": "2025-10-09T21:12:00+02:00",
     "notes": "Smoke test of BuildDeckRequest end-to-end"
     }   
-
+    eps = EpisodeDataProcessed(**loaded)
     req = BuildDeckRequest(**request)
+    cands = select_candidates(eps,req)
+    assert all(x['pos'] == 'NOUN' for x in cands)
 
-    print(req)
+
+    
+   
    

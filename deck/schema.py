@@ -1,6 +1,4 @@
-
-from __future__ import annotations
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Dict, Any
 from pydantic import BaseModel, Field
 import hashlib
 import json
@@ -71,7 +69,7 @@ class Deck(BaseModel):
     achieved_coverage: float = 0.0     # 0..1 (fill if you compute it upstream)
     idempotency_key: str               # hash of (analyzed_hash + knobs/version)
     cached: bool = False
-    target_lang_back bool = True
+    target_lang_back: bool = True
 
     @staticmethod
     def make_idempotency_key(*parts: str) -> str:

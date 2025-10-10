@@ -23,14 +23,8 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-
-
-
 def _t():
     return time.perf_counter()
-
-
-
 
 def run_deck_pipeline(
     analyzed_payload: Dict[str, Any],
