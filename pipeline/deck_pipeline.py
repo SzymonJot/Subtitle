@@ -12,6 +12,8 @@ import json, unicodedata, time
 from typing import Dict, List
 import logging
 from nlp.lexicon.schema import Stats
+from typing import Literal
+from pydantic import BaseModel
 
 load_dotenv()
 
@@ -22,68 +24,6 @@ from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
-class ExportOptions(BaseModel):
-    filename_base: Optional[str] = None                      # e.g., "bonusfamiljen-s01e01"
-    include_audio: bool = False
-    add_tags_prefix: Optional[str] = None                    # e.g., "SV"
-    template_id: Optional[str] = None                        # which card template to use
-
-
-class BuildDeckRequest(BaseModel):
-    # ---- Identity of analyzed source (must point to a specific analyzed payload) ----
-    episode_id: str
-    analyzed_hash: str                                       # deterministic hash of analyzed payload
-
-    # ---- User-tunable knobs (the ones that define the output) ----
-    target_coverage: float = Field(0.90, ge=0.10, le=1.00)
-    max_cards: Optional[int] = Field(default=None, ge=1)
-    include_pos: List[Literal["NOUN", "VERB", "ADJ", "ADV"]] = Field(
-        default_factory=lambda: ["NOUN", "VERB", "ADJ"]
-    )
-    exclude_known_lemmas: List[str] = Field(default_factory=list)
-    dedupe_sentences: bool = True
-    difficulty_scoring: Literal["freq", "information_gain", "mixed"] = "freq"
-    output_format: Literal["anki", "quizlet", "csv"] = "anki"
-
-    # Language-specific options; namespaced by language code, e.g. {"sv": {...}}
-    lang_opts: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
-
-    # ---- Version tags (affect caching/provenance) ----
-    build_version: str                                       # e.g., "2025-10-09.b3"
-    params_schema_version: Optional[str] = None              # e.g., "v1"
-
-    # ---- Output details (don’t affect selection logic unless you decide so) ----
-    export_options: ExportOptions = Field(default_factory=ExportOptions)
-
-    # ---- Observability / metadata (must NOT enter the hash) ----
-    requested_by: Optional[str] = None                       # user id/email
-    requested_at_iso: Optional[str] = None                   # ISO timestamp
-    notes: Optional[str] = None
-
-from typing import Literal
-from pydantic import BaseModel
-
-
-class BuiltDeck(BaseModel):
-    # Provenance
-    episode_id: str
-    analyzed_hash: str
-    idempotency_key: str
-    build_version: str
-
-    # File info
-    format: Literal["anki", "quizlet", "csv"]
-    result_path: str          # e.g., "results/{episode_id}/{idempotency_key}.zip"
-    size_bytes: int
-    checksum_sha256: str
-
-    # Quick stats
-    card_count: int
-    unique_lemmas: int
-    achieved_coverage: float  # 0.0–1.0
-
-    # Flags
-    cached: bool = False
 
 
 def _t():
@@ -141,8 +81,6 @@ def run_deck_pipeline(
     )
 
     return built, file_bytes
-
-
 
 
 if __name__ == '__main__':
