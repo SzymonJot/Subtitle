@@ -54,6 +54,8 @@ class sv_lang_adapter(LangAdapter):
 
             lexicon[token.lemma].forms_freq[token.form] = words_counted.get(token.form, 0)
 
+            lexicon[token.lemma].forms_cov[token.form] = words_counted.get(token.form, 0) / sum(words_counted.values()) if sum(words_counted.values()) > 0 else 0.0
+
             lexicon[token.lemma].forms = list(set(lexicon[token.lemma].forms))  # Ensure unique forms
         logging.info(f"Built lexicon with {len(lexicon)} lemmas from {len(tokens)} tokens.")
         return lexicon

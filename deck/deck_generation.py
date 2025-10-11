@@ -52,23 +52,9 @@ def score_and_rank(candidates: List[Candidate], req: BuildDeckRequest, rng_seed:
     """
     Score and rank candidates based on request parameters.
     """
-    import random
-    rng = random.Random(rng_seed)
-    ranked = []
-    for cand in candidates:
-        score = 0.0
-        if cand.pos == 'NOUN':
-            score += 1.0
-        elif cand.pos == 'VERB':
-            score += 0.8
-        elif cand.pos == 'ADJ':
-            score += 0.5
-        score += len(cand.data.forms) * 0.1
-        score += rng.uniform(0, 0.1)
-        ranked.append(RankedCandidate(candidate=cand, score=score))
-    ranked.sort(key=lambda x: x.score, reverse=True)
-    return ranked
-
+   # Coverage share
+   # Frequency
+    # Difficulty
 def apply_constraints(ranked: List[RankedCandidate], req: BuildDeckRequest) -> List[RankedCandidate]:
     """
     Apply hard constraints from request to the ranked list.

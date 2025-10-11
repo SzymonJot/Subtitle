@@ -31,6 +31,7 @@ class LemmaBase(BaseModel):
     examples: Dict[str, List[str]]
     model_config = ConfigDict(extra="forbid")  
     forms_freq: Dict[str, int] = Field(default_factory=dict)  # per-form token counts
+    forms_cov: Dict[str, float] = Field(default_factory=dict)   # per-form coverage share (0..1)
 
 
 class LemmaSV(LemmaBase):

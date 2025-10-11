@@ -12,14 +12,15 @@ import json, unicodedata, time
 from typing import Dict, List
 import logging
 from nlp.lexicon.schema import Stats
+from nlp.lang.lang_adapter import LangAdapter
+from nlp.content.content_adapter import ContentAdapter
 
 load_dotenv()
 
 def _t():
     return time.perf_counter()
 
-def process_episode(analyzed_json: EpisodeDataProcessed,     # sv_adapter
-                    max_examples_per_lemma: int = 5) -> bytes:
+def process_episode(file_bytes, adapter:ContentAdapter,lang_adapter:LangAdapter) -> bytes:
     t0 = _t()
 
     # 1) sentences
@@ -77,7 +78,7 @@ if __name__ == '__main__':
     from nlp.lang.sv.lang_adapter import sv_lang_adapter
 
     results = process_episode(
-        open("test/ep1.srt", "rb").read(),
+        open("test/ep1 copy.srt", "rb").read(),
         adapter = SRTAdapter(),
         lang_adapter = sv_lang_adapter()
     )
