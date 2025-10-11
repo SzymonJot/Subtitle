@@ -45,16 +45,23 @@ def select_candidates(analyzed_payload: EpisodeDataProcessed, req: BuildDeckRequ
             continue
         if any(form in known_words for form in data.forms):
             continue
-        candidates.append(Candidate(lemma=lemma, pos=pos, data=data))
+        candidates.append(Candidate(lemma=lemma, pos=pos, data=data, freq = data.forms_freq, cov_share=data.forms_cov))
     return candidates
 
 def score_and_rank(candidates: List[Candidate], req: BuildDeckRequest, rng_seed: int) -> List[RankedCandidate]:
     """
     Score and rank candidates based on request parameters.
     """
-   # Coverage share
-   # Frequency
-    # Difficulty
+    
+    ranked_candidates = []
+    candidates = sorted(candidates, key=lambda x: sum(x['cov_share'].values()), reverse=True)
+ 
+    for candidate in candidates:
+        candidate['score'] = sum(candidate['cov_share'].values())
+        ranked_candidates.append(RankedCandidate(**candidate))
+
+    return ranked_candidates
+ 
 def apply_constraints(ranked: List[RankedCandidate], req: BuildDeckRequest) -> List[RankedCandidate]:
     """
     Apply hard constraints from request to the ranked list.
@@ -136,7 +143,7 @@ if __name__ == "__main__":
     "analyzed_hash": "c0ffee12-3456-789a-bcde-0123456789ab", #hash from analysis    
     "target_coverage": 0.92,
     "max_cards": 120,
-    "include_pos": ["NOUN"],
+    "include_pos": ["NOUN", "VERB"],
     "exclude_known_lemmas": ["vara", "ha", "och", "att"],
     "dedupe_sentences": True,
     "difficulty_scoring": "mixed",
@@ -158,7 +165,10 @@ if __name__ == "__main__":
     eps = EpisodeDataProcessed(**loaded)
     req = BuildDeckRequest(**request)
     cands = select_candidates(eps,req)
-    assert all(x['pos'] == 'NOUN' for x in cands)
+    #print(cands)
+    score_and_rank(cands,req,1)
+    print('a')
+    assert all(x['pos'] == 'NOUN' or x['pos'] == 'VERB' for x in cands)
 
 
     
