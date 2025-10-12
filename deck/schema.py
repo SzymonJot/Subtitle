@@ -125,9 +125,11 @@ class BuildDeckRequest(BaseModel):
     # ---- User-tunable knobs (the ones that define the output) ----
     target_coverage: float = Field(0.90, ge=0.10, le=1.00)
     max_cards: Optional[int] = Field(default=None, ge=1)
-    include_pos: List[Literal["NOUN", "VERB", "ADJ", "ADV"]] = Field(
-        default_factory=lambda: ["NOUN", "VERB", "ADJ"]
+    include_pos: Optional[List[Literal["NOUN", "VERB", "ADJ", "ADV"]]] = Field(
+        default_factory=list
     )
+    max_share_per_pos: Dict[str, float] = Field(default_factory=dict)  # e.g., {"NOUN": 0.5, "VERB": 0.5}
+    target_share_per_pos: Optional[Dict[str, float]] = Field(default_factory=dict)
     exclude_known_lemmas: List[str] = Field(default_factory=list)
     dedupe_sentences: bool = True
     difficulty_scoring: Literal["freq", "information_gain", "mixed"] = "freq"

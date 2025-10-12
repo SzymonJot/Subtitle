@@ -44,7 +44,7 @@ def process_episode(file_bytes, adapter:ContentAdapter,lang_adapter:LangAdapter)
 
     # 4) lemmas
     t3 = _t()
-    lexicon: Dict[str, LemmaSV] = lang_adapter.build_dictionary_from_tokens(tokens, words_counted)
+    lexicon: Dict[str, LemmaSV] = lang_adapter.build_dictionary_from_tokens(tokens)
     logging.info("Built lexicon with %d lemmas (%.3fs)", len(lexicon), _t()-t3)
 
     # 5) examples (cap per lemma inside the method)
