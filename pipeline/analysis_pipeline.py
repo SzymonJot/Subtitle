@@ -7,7 +7,7 @@ import os
 from typing import Dict, List, Tuple
 import time, unicodedata as ud
 from dotenv import load_dotenv
-from nlp.lexicon.schema import EpisodeDataProcessed
+from nlp.lexicon.schema import EpisodeDataProcessed, LemmaSV
 import json, unicodedata, time
 from typing import Dict, List
 import logging
@@ -44,7 +44,7 @@ def process_episode(file_bytes, adapter:ContentAdapter,lang_adapter:LangAdapter)
 
     # 4) lemmas
     t3 = _t()
-    lexicon: Dict[str, LemmaSV] = lang_adapter.build_dictionary_from_tokens(tokens)
+    lexicon: Dict[str, LemmaSV] = lang_adapter.build_dictionary_from_tokens(tokens, words_counted)
     logging.info("Built lexicon with %d lemmas (%.3fs)", len(lexicon), _t()-t3)
 
     # 5) examples (cap per lemma inside the method)
@@ -65,8 +65,20 @@ def process_episode(file_bytes, adapter:ContentAdapter,lang_adapter:LangAdapter)
                                    )
 
     json_str = payload.model_dump_json(indent=2)  # already JSON-safe
+    print(words_counted)
+    print(len(words_counted))
+    print(len(tokens))
+   
+    print(len(payload.episode_data_processed))
+    print(sum(len(x.forms) for x in payload.episode_data_processed.values()))
+    total_tokens = sum(sum(v.forms_freq.values()) for v in payload.episode_data_processed.values())
+    print(total_tokens)
+
 
     logging.info("Finalized lexicon (%.3fs). Total: %.3fs", _t()-t5, _t()-t0)
+    print(len(lexicon))
+    print(sum(sum(v.forms_cov.values()) for v in lexicon.values()))
+
     return json_str
 
 
@@ -82,6 +94,9 @@ if __name__ == '__main__':
         adapter = SRTAdapter(),
         lang_adapter = sv_lang_adapter()
     )
+   
+
+   
     # binary snapshot (full fidelity)
     with open('data.pkl', 'wb') as f:
         pickle.dump(results, f)

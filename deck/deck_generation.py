@@ -332,12 +332,12 @@ if __name__ == "__main__":
     request = {
     "episode_id": "bonusfamiljen-s01e01",
     "analyzed_hash": "c0ffee12-3456-789a-bcde-0123456789ab", #hash from analysis    
-    "target_coverage": 0.8,
-    "max_cards": None,
-    #"include_pos": ["NOUN", "VERB"],
-    #"max_share_per_pos": None,
-    #"target_share_per_cov": {"NOUN": 0.5, "VERB": 0.5},
-    #"exclude_known_lemmas": ["vara", "ha", "och", "att"],
+    "target_coverage": None,
+    "max_cards": 100,
+    "include_pos": None,
+    "max_share_per_pos": {"NOUN": 0.6, "VERB": 0.2, 'ADJ':0.1},
+    "target_share_per_pos": {"NOUN": 0.5, "VERB": 0.5},
+    "exclude_known_lemmas": ["vara", "ha", "och", "att"],
     "dedupe_sentences": True,
     "difficulty_scoring": "mixed",
     "output_format": "anki",

@@ -123,7 +123,7 @@ class BuildDeckRequest(BaseModel):
     analyzed_hash: str                                       # deterministic hash of analyzed payload
 
     # ---- User-tunable knobs (the ones that define the output) ----
-    target_coverage: float = Field(0.90, ge=0.10, le=1.00)
+    target_coverage: Optional[float] = Field(0.90, ge=0.10, le=1.00)
     max_cards: Optional[int] = Field(default=None, ge=1)
     include_pos: Optional[List[Literal["NOUN", "VERB", "ADJ", "ADV"]]] = Field(
         default_factory=list

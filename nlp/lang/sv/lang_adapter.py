@@ -34,57 +34,44 @@ class sv_lang_adapter(LangAdapter):
         return tokens
     
 
-    def build_dictionary_from_tokens(self, tokens: List[NLPToken]) -> Dict[str, LemmaSV]:
-        """
-        Build a Swedish lexicon where:
-          - forms_freq: per-lemma, per-form counts (from these tokens)
-          - forms_cov: per-lemma, per-form coverage share using ONE shared denominator
-                       (sum over all lemmas & forms ≈ 1.0)
-        Assumes each token has: lemma (str), form (str), pos (str), and optional other: dict.
-        """
-        lexicon: Dict[str, LemmaSV] = {}
-        total_tokens_in_pool = 0  # denominator shared across all entries
-
-        # 1) Count per-lemma/per-form directly from tokens (no global form table)
-        for tok in tokens:
-            total_tokens_in_pool += 1
-            lemma = tok.lemma
-            form = tok.form
-
-            if lemma not in lexicon:
-                lexicon[lemma] = LemmaSV(
-                    pos=tok.pos,
+    def build_dictionary_from_tokens(self, tokens: list[NLPToken], words_counted: Dict[str,int]) -> Dict[str, LemmaSV]:
+        
+        # Implement Swedish-specific dictionary building logic here
+        # Example: Group tokens by lemma and aggregate forms and features
+        print('words unique')
+        print(len(words_counted))
+        print('all words')
+        print(sum(words_counted.values()))
+        test = 0
+        lexicon = {}
+        for token in tokens:
+            if token.lemma not in lexicon:
+                lexicon[token.lemma] = LemmaSV(
+                    pos=token.pos,
                     forms=[],
-                    examples={},                # fill elsewhere if you have examples
-                    lang="sv",
-                    artikel=(tok.other.get("artikel") if getattr(tok, "other", None) else None),
-                    gender=(tok.other.get("gender") if getattr(tok, "other", None) else None),
-                    definite=(tok.other.get("definite") if getattr(tok, "other", None) else None),
+                    examples={},
+                    artikel=token.other.get('artikel') if token.other else None,
+                    forms_freq={},
+                    lang="sv"
                 )
 
-            entry = lexicon[lemma]
-            entry.forms.append(form)
-            entry.forms_freq[form] = entry.forms_freq.get(form, 0) + 1
+            lexicon[token.lemma].forms.append(token.form)
 
-        # 2) Finalize: dedupe forms; compute per-form coverage with the SAME denominator
-        if total_tokens_in_pool == 0:
-            return lexicon  # empty input → empty cov
+            lexicon[token.lemma].forms_freq[token.form] = words_counted.get(token.form, 0)
 
-        for lemma, entry in lexicon.items():
-            # unique forms on output
-            entry.forms = list(set(entry.forms))
-            # per-form coverage share (each token contributes exactly once overall)
-            entry.forms_cov = {
-                f: cnt / total_tokens_in_pool
-                for f, cnt in entry.forms_freq.items()
-            }
+            # REVIEW THIS,
+            lexicon[token.lemma].forms_cov[token.form] = words_counted.get(token.form, 0) / sum(words_counted.values()) if sum(words_counted.values()) > 0 else 0.0
+            test += words_counted.get(token.form, 0)
+            lexicon[token.lemma].forms = list(set(lexicon[token.lemma].forms))  # Ensure unique forms
+        print('Accumulated nominators')
+        print(test)
+        print('Denominotrs')
+        print(sum(words_counted.values()))
+        print("Sum")
 
-        # Optional sanity: pool coverage should sum ≈ 1.0
-        # total_cov = sum(sum(e.forms_cov.values()) for e in lexicon.values())
-        # assert 0.99 <= total_cov <= 1.01, f"Pool coverage sum is {total_cov:.6f}, expected ~1.0"
-
+        print(sum(sum(v.forms_cov.values()) for v in lexicon.values()))
+        logging.info(f"Built lexicon with {len(lexicon)} lemmas from {len(tokens)} tokens.")
         return lexicon
-
 
 
 
