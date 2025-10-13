@@ -134,7 +134,7 @@ class BuildDeckRequest(BaseModel):
     dedupe_sentences: bool = True
     difficulty_scoring: Literal["freq", "information_gain", "mixed"] = "freq"
     output_format: Literal["anki", "quizlet", "csv"] = "anki"
-
+    example_settings: Dict[str, Dict[str, Any]] = Field(default_factory=Dict)
     # Language-specific options; namespaced by language code, e.g. {"sv": {...}}
     lang_opts: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
 

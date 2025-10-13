@@ -22,6 +22,7 @@ class Candidate(TypedDict):
     forms: List[str]
     freq: int
     cov_share: float        # per-lemma coverage share (0..1)
+    example: dict
 
 class RankedCandidate(TypedDict):
     lemma: str
@@ -30,6 +31,7 @@ class RankedCandidate(TypedDict):
     freq: int
     cov_share: float
     score: float
+    example: dict
 
 def select_candidates(analyzed_payload: EpisodeDataProcessed, req: BuildDeckRequest) -> List[Candidate]:
     lexicon = analyzed_payload.episode_data_processed
@@ -287,11 +289,69 @@ def build_preview(selection: List[RankedCandidate], req: BuildDeckRequest) -> Tu
     preview_text = "\n".join(lines)
     return preview_text.encode("utf-8"), "text/plain"
 
+from typing import List, Dict, Optional
+from collections import defaultdict
+
+def choose_example(
+    selection: List[RankedCandidate],
+    analyzed_payload: EpisodeDataProcessed,
+    req: BuildDeckRequest
+) -> List[RankedCandidate]:
+    """
+    For each candidate and for each of its forms found in analyzed examples,
+    choose exactly one example sentence and store under candidate['example'][form].
+    """
+    # Read constraints (adapt lang key if needed)
+    lang_opts = req.lang_opts.get("sv", {})
+    min_len = int(lang_opts.get("min_example_len", 1))
+    max_len = int(lang_opts.get("max_example_len", 10**9))
+    dedupe = bool(getattr(req, "dedupe_sentences", False))
+
+    seen_sentences = set()
+
+    def wc(s: str) -> int:
+        return len(s.split())
+
+    def pick_best(examples: List[str]) -> Optional[str]:
+        if not examples:
+            return None
+        # Apply length bounds
+        pool = [e for e in examples if min_len <= wc(e) <= max_len] or examples
+        # Prefer multi-word
+        multi = [e for e in pool if wc(e) > 1] or pool
+        # Respect dedupe if requested
+        if dedupe:
+            for e in multi:
+                if e not in seen_sentences:
+                    seen_sentences.add(e)
+                    return e
+            # all were seen: still return something deterministic
+            return multi[0]
+        else:
+            return multi[0]
+
+    for cand in selection:
+        lemma = cand["lemma"]
+        data = analyzed_payload.episode_data_processed.get(lemma)
+        cand["example"] = {}  # prepare output container
+
+        if not data or not getattr(data, "examples", None):
+            continue
+
+        # data.examples is expected to be: Dict[str form, List[str sentences]]
+        for form, examples in data.examples.items():
+            chosen = pick_best(examples)
+            if chosen:
+                cand["example"][form] = chosen
+
+    return selection
+
+
 def translate_selection(selection: List[RankedCandidate], translator, req: BuildDeckRequest) -> List[RankedCandidate]:
     """
     Translate the selected candidates using the provided translator.
     """
-    pass
+    return
 
 def assemble_cards(selection: List[RankedCandidate], analyzed_payload: EpisodeDataProcessed, req: BuildDeckRequest) -> List[Card]:
     """
@@ -341,11 +401,15 @@ if __name__ == "__main__":
     "dedupe_sentences": True,
     "difficulty_scoring": "mixed",
     "output_format": "anki",
+    "example_settings":{
+        "example_len":{
+            "min_example_len": 15,
+            "max_example_len": 140
+        }
+    },
     "lang_opts": {
       "sv": {
-        "require_article_for_nouns": True,
-        "min_example_len": 15,
-        "max_example_len": 140
+      
       }
     },
     "build_version": "2025-10-09.b3",
@@ -360,30 +424,31 @@ if __name__ == "__main__":
     print(len(set(eps.episode_data_processed)))
 
     cands = select_candidates(eps,req)
-    print(len(cands))
+    s = choose_example(cands, eps, req)
+    print(s)
+    #print(len(cands))
+#
+    #print(sum([x['cov_share'] for x in cands]))
+   #
+    #
+    #print(len(cands))
+    #cands = score_and_rank(cands,req,1)
+    #contr = apply_constraints(cands,req)
+    #print(sum(c['cov_share'] for c in cands))
+    #print("Pool size:", len(contr))
+    #
+    #print("Sum cov_share:", sum(c['cov_share'] for c in contr))
+    ##print(cands)
+    #
+    #picked, rep = pick_until_target(
+    #filtered_ranked=contr,                      # List[RankedCandidate] (dicts)
+    #max_cards=req.max_cards,
+    #target_coverage=req.target_coverage,
+    #max_share_per_pos=req.max_share_per_pos,    # e.g., {"NOUN": 0.5, "VERB": 0.5}
+    #target_share_per_pos=req.target_share_per_pos,  # optional, e.g., {"NOUN": 0.5, "VERB": 0.5}
+    #)
 
-    print(sum([x['cov_share'] for x in cands]))
-   
-    
-    print(len(cands))
-    cands = score_and_rank(cands,req,1)
-    contr = apply_constraints(cands,req)
-    print(sum(c['cov_share'] for c in cands))
-    print("Pool size:", len(contr))
-    
-    print("Sum cov_share:", sum(c['cov_share'] for c in contr))
-    #print(cands)
-    
-    picked, rep = pick_until_target(
-    filtered_ranked=contr,                      # List[RankedCandidate] (dicts)
-    max_cards=req.max_cards,
-    target_coverage=req.target_coverage,
-    max_share_per_pos=req.max_share_per_pos,    # e.g., {"NOUN": 0.5, "VERB": 0.5}
-    target_share_per_pos=req.target_share_per_pos,  # optional, e.g., {"NOUN": 0.5, "VERB": 0.5}
-)
 
-    print('a')
-    print(rep)
     #assert all(x['pos'] == 'NOUN' or x['pos'] == 'VERB' for x in cands)
 
 
