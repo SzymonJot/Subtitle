@@ -14,6 +14,7 @@ from deck.schema import Deck, Card, OutputFormat, ExportOptions, BuiltDeck,Build
 import langcodes
 import unicodedata
 
+TRANS_VERSION = 'DEEPL:2025-09'
 #DEEPL_AUTH_KEY  = os.getenv('DEEPL_AUTH_KEY')
 
 #translator = deepl.Translator(DEEPL_AUTH_KEY)
@@ -352,7 +353,7 @@ def choose_example(
 
 SEP_FIND = re.compile(r'[\r\n\x85\u2028\u2029]')
 
-def create_id_translation_cache(word: str, sentence: str, translation_ver:str, source_lang:str, target_lang: str) -> str:
+def create_id_translation_cache(word: str, sentence: str, source_lang:str, target_lang: str, translation_ver:str = TRANS_VERSION) -> str:
     """
     Creates ID for translation cache table based on passed parameters.
     Key are case sensitive.
