@@ -11,6 +11,8 @@ from math import floor
 from typing import Dict, List, TypedDict, Optional, Tuple
 from nlp.lexicon.schema import EpisodeDataProcessed
 from deck.schema import Deck, Card, OutputFormat, ExportOptions, BuiltDeck,BuildDeckRequest
+import langcodes
+import unicodedata
 
 #DEEPL_AUTH_KEY  = os.getenv('DEEPL_AUTH_KEY')
 
@@ -32,6 +34,8 @@ class RankedCandidate(TypedDict):
     cov_share: float
     score: float
     example: dict
+    translated_word: str
+    translated_example: str
 
 def select_candidates(analyzed_payload: EpisodeDataProcessed, req: BuildDeckRequest) -> List[Candidate]:
     lexicon = analyzed_payload.episode_data_processed
@@ -346,11 +350,51 @@ def choose_example(
 
     return selection
 
+SEP_FIND = re.compile(r'[\r\n\x85\u2028\u2029]')
+
+def create_id_translation_cache(word: str, sentence: str, translation_ver:str, source_lang:str, target_lang: str) -> str:
+    """
+    Creates ID for translation cache table based on passed parameters.
+    Key are case sensitive.
+    All white spaces are collapsed as it won't change learning experience.
+    """
+
+    if SEP_FIND.search(sentence):
+        raise ValueError("CR/LF characters/lines break found in sentence!")
+    
+    if SEP_FIND.search(word):
+        raise ValueError("CR/LF characters/lines break found in word!")
+    
+    source_tag = langcodes.Language.get(source_lang).to_tag()
+    target_tag = langcodes.Language.get(target_lang).to_tag()
+
+    
+    word_cleaned = unicodedata.normalize("NFKC",word.strip())
+    sentence = " ".join(sentence.split())
+    sentence_cleaned =  unicodedata.normalize("NFKC", sentence )
+
+    if not word_cleaned:
+        raise ValueError("Incorrect word")
+    if not sentence_cleaned:
+        raise ValueError("Incorrect sentence")
+    if not translation_ver:
+        raise ValueError("Incorrect version")
+    
+    image = {}
+    image['word'] = word_cleaned
+    image['sentence'] = sentence_cleaned
+    image['target_lang'] = target_tag
+    image['source_lang'] = source_tag
+    image['translation_ver'] = translation_ver
+
+    return hashlib.sha256(json.dumps(image, sort_keys=True, ensure_ascii=False, separators=(',',':')).encode(encoding='utf-8')).hexdigest()
 
 def translate_selection(selection: List[RankedCandidate], translator, req: BuildDeckRequest) -> List[RankedCandidate]:
     """
     Translate the selected candidates using the provided translator.
     """
+    # Context translation, cache has to have word+sentence id and langauge
+    # it should process in batches
     return
 
 def assemble_cards(selection: List[RankedCandidate], analyzed_payload: EpisodeDataProcessed, req: BuildDeckRequest) -> List[Card]:
