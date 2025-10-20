@@ -171,3 +171,13 @@ class BuiltDeck(BaseModel):
 
     # Flags
     cached: bool = False
+
+
+class CacheEntry(BaseModel):
+    id: str
+    form_org_lang: str
+    sentence_org_lang: str
+    word_target_lang: str
+    sentence_target_lang: str
+    org_lang: str
+    target_lang: str
