@@ -2,7 +2,7 @@ import os
 from common.supabase_client import get_client
 from typing import  Any
 from dataclasses import dataclass, asdict
-from deck.schema import CacheEntry
+from common.schemas import CacheEntry
 import logging
 from datetime import datetime
 

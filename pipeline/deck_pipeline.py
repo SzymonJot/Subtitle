@@ -76,6 +76,39 @@ def run_deck_pipeline(
 
     return built, file_bytes
 
+def run_preview_pipeline(
+    analyzed_payload: Dict[str, Any],
+    req: BuildDeckRequest,
+) -> List[Card]:
+    """
+    Run pipeline up to card assembly for preview.
+    """
+    # 1) Candidates
+    candidates = select_candidates(analyzed_payload, req)
+
+    # 2) Score + rank
+    # For preview, we might skip expensive steps if possible, but for now run full logic
+    # We need a seed. For preview, maybe just use a constant or random?
+    # Or derive from req if possible.
+    rng_seed = 42 
+    ranked = score_and_rank(candidates, req, rng_seed)
+
+    # 3) Enforce hard knobs
+    filtered = apply_constraints(ranked, req) 
+
+    # 4) Pick until you hit coverage or cap
+    selection = pick_until_target(filtered, req) 
+
+    # 5) Translate (might be slow, but needed for preview)
+    # In real app, we might want to limit preview size to avoid translating 1000 cards
+    # Let's cap selection for preview if it's too large?
+    # For now, just run it.
+    selection_with_tx = translate_selection(selection, translator, req)
+    
+    cards = assemble_cards(selection_with_tx, analyzed_payload, req)
+    
+    return cards
+
 
 if __name__ == '__main__':
     from pprint import pformat  

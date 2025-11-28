@@ -486,8 +486,29 @@ def translate_selection(selection: List[RankedCandidate], translator, source_lan
         candidate["translated_word"] = target_lang_word
 
         if not target_lang_word == "":
-            # TO IMPLEMENT
-            cache_translation(form, target_lang_word, sentence, target_lang_sentence ,source_lang, target_lang)
+            # Create CacheEntry
+            # We need to construct CacheEntry object or dict
+            # CacheEntry(id, form_org_lang, sentence_org_lang, word_target_lang, sentence_target_lang, org_lang, target_lang)
+            
+            # Calculate ID
+            cache_id = create_id_translation_cache(form, sentence, source_lang, target_lang)
+            
+            entry = {
+                "id": cache_id,
+                "form_org_lang": form,
+                "sentence_org_lang": sentence,
+                "word_target_lang": target_lang_word,
+                "sentence_target_lang": target_lang_sentence,
+                "org_lang": source_lang,
+                "target_lang": target_lang
+            }
+            
+            # Upsert immediately (or batch?)
+            # For now immediately
+            try:
+                deck_io.upsert_cache_translation([entry])
+            except Exception as e:
+                print(f"Failed to cache translation: {e}")
 
     
     return cached_translation + to_translate
@@ -503,25 +524,86 @@ def assemble_cards(selection: List[RankedCandidate], analyzed_payload: EpisodeDa
     """
     Assemble card data from the selection and analyzed payload.
     """
-    pass
+    # 1. Choose examples
+    selection_with_examples = choose_example(selection, analyzed_payload, req)
+    
+    cards = []
+    for item in selection_with_examples:
+        # Create Card object
+        # We need to map RankedCandidate fields to Card fields
+        # Card(id, lemma, prompt, answer, sentence, pos, tags)
+        
+        # For now, simple mapping:
+        # prompt = lemma (or form?)
+        # answer = translated_word
+        # sentence = sentence_original_lang (with hole?) -> translated_example
+        
+        # Let's assume:
+        # Front: Lemma + Sentence (original)
+        # Back: Translated Word + Translated Sentence
+        
+        # Or based on Card schema:
+        # lemma: str
+        # prompt: str
+        # answer: str
+        # sentence: Optional[str]
+        
+        c = Card.from_minimal(
+            lemma=item['lemma'],
+            sentence=item.get('sentence_original_lang'),
+            pos=item['pos'],
+            tags=[item['pos']],
+            build_version=req.build_version or "v1"
+        )
+        # Override prompt/answer if needed based on template
+        # For now, let's keep defaults from from_minimal or set them explicitly
+        c.prompt = item['lemma']
+        c.answer = item.get('translated_word', '')
+        # If we have translation, maybe we want to store it?
+        # Card schema is simple. Let's stick to basic.
+        
+        cards.append(c)
+        
+    return cards
 
-def build_deck(cards: List[Card], req: BuildDeckRequest, file_bytes: bytes, out_format: OutputFormat, result_path: str) -> Deck:
+def build_deck(req: BuildDeckRequest, stats: Dict, file_bytes: bytes, format_: OutputFormat, result_path: str) -> BuiltDeck:
     """
     Build the final deck metadata object.
     """
-    pass
+    return BuiltDeck(
+        episode_id=req.episode_id,
+        analyzed_hash=req.analyzed_hash,
+        idempotency_key=req.idempotency_key(),
+        build_version=req.build_version or "v1",
+        format=format_,
+        result_path=result_path,
+        size_bytes=len(file_bytes),
+        checksum_sha256=hashlib.sha256(file_bytes).hexdigest(),
+        card_count=stats.get('card_count', 0),
+        unique_lemmas=stats.get('unique_lemmas', 0),
+        achieved_coverage=stats.get('achieved_coverage', 0.0),
+        cached=False
+    )
 
-def render_export(deck: Deck, req: BuildDeckRequest) -> Tuple[bytes, str]:
+def render_export(cards: List[Card], req: BuildDeckRequest) -> Tuple[bytes, str]:
     """
     Render the cards into the requested format and return as bytes.
     """
-    pass
+    # Placeholder for actual rendering (Anki/CSV)
+    # For now, return JSON as bytes
+    import json
+    data = [c.dict() for c in cards]
+    return json.dumps(data, ensure_ascii=False, indent=2).encode('utf-8'), "json"
 
-def collect_stats(cards: List[Dict], analyzed_payload: EpisodeDataProcessed, req: BuildDeckRequest) -> Dict:
+def collect_stats(cards: List[Card], analyzed_payload: EpisodeDataProcessed, req: BuildDeckRequest) -> Dict:
     """
     Collect statistics about the generated deck.
     """
-    pass
+    return {
+        "card_count": len(cards),
+        "unique_lemmas": len({c.lemma for c in cards}),
+        "achieved_coverage": 0.0 # TODO: Calculate real coverage
+    }
 
 
 if __name__ == "__main__":

@@ -7,3 +7,6 @@ supabase
 python-dotenv
 requests
 python-multipart
+dotenv
+redis
+stanza

@@ -1,5 +1,5 @@
 from typing import Protocol, List
-from deck.schema import  CacheEntry
+from common.schemas import CacheEntry
 
 class DeckIO(Protocol):
     def get_cached(self, ids: List[str]) -> dict[str, dict]: ...

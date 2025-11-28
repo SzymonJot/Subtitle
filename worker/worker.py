@@ -1,33 +1,29 @@
 import os
 from common.supabase_client import get_client
-import json
 import traceback
 import datetime as dt
-import json
 import logging
 from pipeline.analysis_pipeline import process_episode
-
+from infra.supabase.jobs_repo import SBJobsIO
+from common.constants import (
+    TABLE_JOBS, BUCKET_UPLOADS, QUEUE_MVP, STATUS_QUEUED, EXT_SRT, STATUS_FAILED, STATUS_RUNNING, STATUS_SUCCEEDED
+)
 
 SB = get_client(os.environ["SUPABASE_URL"], os.environ['SUPABASE_SERVICE_KEY'])
-
-def _utc_now():
-    return dt.datetime.utcnow().isoformat() + 'Z'
+sb_jobs_io = SBJobsIO(SB)
 
 def run_job(job_id: str):
     try:
         # Get row from supabase for this job id
-        row = SB.table('jobs').select('*').eq('id', job_id).execute().data[0]
-        # Get path for file 
+        row = sb_jobs_io.get_job(job_id)
         in_path = row['input_path']
         # Fetch file
-        file_to_process = SB.storage.from_('uploads').download(in_path)
+        file_to_process = sb_jobs_io.get_storage_file(in_path)
         # Get params
         params = row['params']
         # Pass file to data pipeline
-        SB.table('jobs').update({
-            'status': 'running',
-            'started_at': _utc_now()
-        }).eq('id', job_id).execute()
+        logging.info(f"Processing job: {job_id}")
+        sb_jobs_io.update_status(job_id, STATUS_RUNNING, 0)
         
         if params['file_type'] == 'srt':
             from nlp.content.srt_adapter import SRTAdapter
@@ -46,25 +42,20 @@ def run_job(job_id: str):
         # Put it to bucket results
         results_encoded = json_str.encode("utf-8")
         logging.info(f"Encoded results to {len(results_encoded)} bytes.")
-
-        SB.storage.from_('results').upload(job_id,results_encoded, {'content-type':'application/json'})
+        sb_jobs_io.upload_file(BUCKET_RESULTS, results_encoded, job_id)
+        logging.info(f"Uploaded results to bucket {BUCKET_RESULTS}/{job_id}")
         # Put result path to jobs table
-        output_path = f'results/{job_id}'
-        SB.table('jobs').update({'output_path': output_path}).eq('id', job_id).execute()
+        output_path = f'{BUCKET_RESULTS}/{job_id}'
+        logging.info(f"Output path: {output_path}")
+        sb_jobs_io.update_value(TABLE_JOBS, {'output_path': output_path})
+        logging.info(f"Updated jobs table with output path: {output_path}")
         # Set supabase to success
-        SB.table('jobs').update({
-            'status': 'succeeded',
-            'progress': 100,
-            'finished_at': _utc_now()
-        }).eq('id', job_id).execute()
+        sb_jobs_io.update_status(job_id, STATUS_SUCCEEDED, 100)
+        logging.info(f"Updated status to succeeded for job: {job_id}")
 
     except Exception as e:
-        SB.table('jobs').update({
-            'status': 'failed',
-            'progress': 0,
-            'finished_at': _utc_now(),
-            'error': traceback.format_exc()[:8000]
-        }).eq('id', job_id).execute()
+        sb_jobs_io.update_status(job_id, STATUS_FAILED, 0, error=traceback.format_exc()[:8000])
+        logging.error(f"Failed to process job: {job_id}")
         raise
 
 if __name__ == '__main__':

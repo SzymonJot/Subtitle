@@ -1,3 +1,6 @@
+from typing import Optional, List, Literal, Dict, Any
+from pydantic import BaseModel, Field
+
 from typing import List, Optional, Literal, Dict, Any
 from pydantic import BaseModel, Field
 import hashlib
@@ -116,40 +119,6 @@ class ExportOptions(BaseModel):
     template_id: Optional[str] = None                        # which card template to use
 
 
-class BuildDeckRequest(BaseModel):
-    # Request to build a deck of flashcards from analyzed episode data. #
-    # ---- Identity of analyzed source (must point to a specific analyzed payload) ----
-    episode_id: str
-    analyzed_hash: str                                       # deterministic hash of analyzed payload
-
-    # ---- User-tunable knobs (the ones that define the output) ----
-    target_coverage: Optional[float] = Field(0.90, ge=0.10, le=1.00)
-    max_cards: Optional[int] = Field(default=None, ge=1)
-    include_pos: Optional[List[Literal["NOUN", "VERB", "ADJ", "ADV"]]] = Field(
-        default_factory=list
-    )
-    max_share_per_pos: Dict[str, float] = Field(default_factory=dict)  # e.g., {"NOUN": 0.5, "VERB": 0.5}
-    target_share_per_pos: Optional[Dict[str, float]] = Field(default_factory=dict)
-    exclude_known_lemmas: List[str] = Field(default_factory=list)
-    dedupe_sentences: bool = True
-    difficulty_scoring: Literal["freq", "information_gain", "mixed"] = "freq"
-    output_format: Literal["anki", "quizlet", "csv"] = "anki"
-    example_settings: Dict[str, Dict[str, Any]] = Field(default_factory=Dict)
-    # Language-specific options; namespaced by language code, e.g. {"sv": {...}}
-    lang_opts: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
-
-    # ---- Version tags (affect caching/provenance) ----
-    build_version: str                                       # e.g., "2025-10-09.b3"
-    params_schema_version: Optional[str] = None              # e.g., "v1"
-
-    # ---- Output details (don’t affect selection logic unless you decide so) ----
-    export_options: ExportOptions = Field(default_factory=ExportOptions)
-
-    # ---- Observability / metadata (must NOT enter the hash) ----
-    requested_by: Optional[str] = None                       # user id/email
-    requested_at_iso: Optional[str] = None                   # ISO timestamp
-    notes: Optional[str] = None
-
 
 class BuiltDeck(BaseModel):
     # Provenance
@@ -181,3 +150,24 @@ class CacheEntry(BaseModel):
     sentence_target_lang: str
     org_lang: str
     target_lang: str
+    
+class ExportOptions(BaseModel):
+    include_media: bool = True
+
+class BuildDeckRequest(BaseModel):
+    # Request to build a deck of flashcards from analyzed episode data. #
+    # ---- User-tunable knobs (the ones that define the output) ----
+    target_coverage: Optional[float] = Field(0.90, ge=0.10, le=1.00)
+    max_cards: Optional[int] = Field(default=None, ge=1)
+    include_pos: Optional[List[Literal["NOUN", "VERB", "ADJ", "ADV"]]] = Field(
+        default_factory=list
+    )
+    max_share_per_pos: Dict[str, float] = Field(default_factory=dict)  # e.g., {"NOUN": 0.5, "VERB": 0.5}
+    target_share_per_pos: Optional[Dict[str, float]] = Field(default_factory=dict)
+    difficulty_scoring: Literal["freq", "information_gain", "mixed"] = "freq"
+    output_format: Literal["anki", "quizlet", "csv"] = "anki"
+    example_settings: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
+    export_options: ExportOptions = Field(default_factory=ExportOptions)
+
+
+
