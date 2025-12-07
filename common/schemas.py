@@ -36,6 +36,8 @@ class Card(BaseModel):
         cls,
         *,
         lemma: str,
+        prompt: str,
+        answer: str,
         sentence: Optional[str] = None,
         pos: Optional[POS] = None,
         tags: Optional[List[str]] = None,
@@ -46,8 +48,8 @@ class Card(BaseModel):
         return cls(
             id=cid,
             lemma=lemma,
-            pro=front,
-            back=back,
+            prompt=prompt,
+            answer=answer,
             sentence=sentence,
             pos=pos,
             tags=tags or [],
@@ -154,20 +156,25 @@ class CacheEntry(BaseModel):
 class ExportOptions(BaseModel):
     include_media: bool = True
 
+
+DIFFICULTY_SCORING = Literal["FREQ", "INFORMATION_GAIN", "MIXED"]
+OUTPUT_FORMAT = Literal["ANKI", "QUIZLET", "CSV"]
+
 class BuildDeckRequest(BaseModel):
     # Request to build a deck of flashcards from analyzed episode data. #
     # ---- User-tunable knobs (the ones that define the output) ----
+    analyzed_hash: str
     target_coverage: Optional[float] = Field(0.90, ge=0.10, le=1.00)
     max_cards: Optional[int] = Field(default=None, ge=1)
-    include_pos: Optional[List[Literal["NOUN", "VERB", "ADJ", "ADV"]]] = Field(
-        default_factory=list
-    )
     max_share_per_pos: Dict[str, float] = Field(default_factory=dict)  # e.g., {"NOUN": 0.5, "VERB": 0.5}
     target_share_per_pos: Optional[Dict[str, float]] = Field(default_factory=dict)
-    difficulty_scoring: Literal["freq", "information_gain", "mixed"] = "freq"
-    output_format: Literal["anki", "quizlet", "csv"] = "anki"
+    difficulty_scoring: DIFFICULTY_SCORING = "FREQ"
+    output_format: OUTPUT_FORMAT = "ANKI"
     example_settings: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
+    lang_opts: Dict[str, Dict[str,Any]] = Field(default_factory=dict)
     export_options: ExportOptions = Field(default_factory=ExportOptions)
-
-
+    build_version: str
+    params_schema_version: Literal["v1"] = "v1"
+    requested_by: str
+    requested_at_iso: str
 

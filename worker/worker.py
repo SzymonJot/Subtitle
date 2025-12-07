@@ -6,7 +6,9 @@ import logging
 from pipeline.analysis_pipeline import process_episode
 from infra.supabase.jobs_repo import SBJobsIO
 from common.constants import (
-    TABLE_JOBS, BUCKET_UPLOADS, QUEUE_MVP, STATUS_QUEUED, EXT_SRT, STATUS_FAILED, STATUS_RUNNING, STATUS_SUCCEEDED
+    TABLE_JOBS, BUCKET_UPLOADS, QUEUE_MVP, STATUS_QUEUED, 
+    EXT_SRT, STATUS_FAILED, STATUS_RUNNING, STATUS_SUCCEEDED,
+    BUCKET_RESULTS
 )
 
 SB = get_client(os.environ["SUPABASE_URL"], os.environ['SUPABASE_SERVICE_KEY'])
@@ -47,7 +49,7 @@ def run_job(job_id: str):
         # Put result path to jobs table
         output_path = f'{BUCKET_RESULTS}/{job_id}'
         logging.info(f"Output path: {output_path}")
-        sb_jobs_io.update_value(TABLE_JOBS, {'output_path': output_path})
+        sb_jobs_io.update_value(TABLE_JOBS, job_id, {'output_path': output_path})
         logging.info(f"Updated jobs table with output path: {output_path}")
         # Set supabase to success
         sb_jobs_io.update_status(job_id, STATUS_SUCCEEDED, 100)

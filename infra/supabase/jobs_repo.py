@@ -44,16 +44,13 @@ class SBJobsIO:
             
         self.sb.table(TABLE_JOBS).update(update_data).eq('id', job_id).execute()
 
-    def update_value(self, table:str, to_update: dict):
-        # This seems generic, but used for output_path
-        # Ideally we should have update_job(job_id, **kwargs)
-        self.sb.table(table).update(to_update).execute()
+    def update_value(self, table:str, job_id: str, to_update: dict):
+        self.sb.table(table).update(to_update).eq('id', job_id).execute()
 
     def upload_file(self, bucket_name: str, file: Any, name: str):
         self.sb.storage.from_(bucket_name).upload(name, file)
 
     def download_analysis(self, job_id: str):
-        # This logic seems specific to how output_path is stored "bucket/path"
         output_path = self.sb.table(TABLE_JOBS).select('output_path').eq('id', job_id).execute().data[0]
         path_str = output_path['output_path']
         bucket_name = path_str.split('/')[0]

@@ -14,6 +14,7 @@ import logging
 from nlp.lexicon.schema import Stats
 from typing import Literal
 from pydantic import BaseModel
+from deck.deck_generation import select_candidates, score_and_rank, apply_constraints, pick_until_target, translate_selection, assemble_cards, render_export, collect_stats, build_metadata
 
 load_dotenv()
 

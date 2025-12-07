@@ -48,7 +48,7 @@ class Stats(BaseModel):
     total_types: int
     total_lemas: int
 
-class EpisodeDataProcessed(BaseModel):
+class AnalyzedEpisode(BaseModel):
     episode_data_processed: Dict[str, LemmaEntry]
     stats: Optional[Stats] = None    # ← NEW optional
     model_config = ConfigDict(extra="forbid")

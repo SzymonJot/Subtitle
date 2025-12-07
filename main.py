@@ -8,13 +8,10 @@ if __name__ == "__main__":
     uvicorn.run("api.app:app", host="0.0.0.0", port=8000, reload = True)
     
 
-   
-
-
 from api.app import create_job
-with open("test/ep1.srt", "rb") as f:
+with open("tests/ep1.srt", "rb") as f:
     data = f.read()
-create_job(data)
+print('finished')
 
 
 
