@@ -1,8 +1,10 @@
 import json,ast
 from common.schemas import BuildDeckRequest
 from nlp.lexicon.schema import AnalyzedEpisode
-from deck.deck_generation import select_candidates, choose_example, translate_selection
-
+from deck.deck_generation.lexicon_processing import select_candidates, score_and_rank, select_example, deck_report
+from deck.deck_generation.candidates_picker import pick_until_target
+from pprint import pprint
+## Transform to pytest later
 srt_path = "tests/integ/data_preview.txt"
 
 with open(srt_path, "r", encoding="utf-8") as f:
@@ -13,14 +15,27 @@ loaded_analysis = json.loads(raw_json_str)
 
 ###############################################
 from tests.integ.example_request import request
-##############################################3
+###############################################
 
 episode_data = AnalyzedEpisode(**loaded_analysis)
 build_request = BuildDeckRequest(**request)
 
-selected = select_candidates(episode_data,build_request)
-print(selected)
-
+selected = select_candidates(episode_data, build_request)
+pprint(selected[:2])
+print('#'*20)
+ranked = score_and_rank(selected, build_request)
+pprint(ranked[:2])
+print('#'*20)
+selected = select_example(ranked, build_request, episode_data)
+pprint(selected[:2])
+print('#'*20)
+picked, rep = pick_until_target(ranked, build_request.max_cards, build_request.target_coverage, build_request.max_share_per_pos, build_request.target_share_per_pos)
+pprint(picked[:2])
+pprint(len(picked))
+pprint(rep)
+print('#'*20)
+ch = deck_report(selected, build_request)
+pprint(ch)
 
 print("Test completed")
 #

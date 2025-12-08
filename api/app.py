@@ -26,10 +26,10 @@ from redis import Redis
 # rq allows for queueing jobs in redis
 # Queue task; Respond; Worker pick it up
 from rq import Queue
-import logging
-logging.basicConfig(level=logging.INFO)
+from common.logging import setup_logging
 
 app = FastAPI()
+setup_logging()
 
 from common.constants import (
     TABLE_JOBS, BUCKET_UPLOADS, QUEUE_MVP, STATUS_QUEUED, EXT_SRT
@@ -77,7 +77,7 @@ def get_job_analysis(job_id: str):
     return sb_jobs_io.download_analysis(job_id)
 
 @app.get("/jobs/{job_id}/preview")
-def get_preview(job_id: str):
+def get_preview(job_id: str, request: BuildDeckRequest):
     # GET processed episode
     return 
 

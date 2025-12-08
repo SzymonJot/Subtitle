@@ -1,7 +1,18 @@
-TRANS_VERSION = 'DEEPL:2025-09'
-#DEEPL_AUTH_KEY  = os.getenv('DEEPL_AUTH_KEY')
+import langcodes
+import unicodedata
+import deepl
+import os
+import re
+import json
+import hashlib
+from typing import List, Tuple
+from core.ports import DeckIO
+from deck.schemas.schema import Candidate
 
-#translator = deepl.Translator(DEEPL_AUTH_KEY)
+TRANS_VERSION = 'DEEPL:2025-09'
+DEEPL_AUTH_KEY  = os.getenv('DEEPL_AUTH_KEY')
+
+translator = deepl.Translator(DEEPL_AUTH_KEY)
 
 
 
@@ -45,7 +56,7 @@ def create_id_translation_cache(word: str, sentence: str, source_lang:str, targe
     return hashlib.sha256(json.dumps(image, sort_keys=True, ensure_ascii=False, separators=(',',':')).encode(encoding='utf-8')).hexdigest()
 
 
-def look_up_cache(candidates_to_check:List, source_lang, target_lang, deck_io: DeckIO) -> Tuple[List[RankedCandidate], List[RankedCandidate]]:
+def look_up_cache(candidates_to_check:List, source_lang, target_lang, deck_io: DeckIO) -> Tuple[List[Candidate], List[Candidate]]:
     """
     Function mutates the candidates that matched cache
     """
@@ -72,7 +83,7 @@ def look_up_cache(candidates_to_check:List, source_lang, target_lang, deck_io: D
 
     return found, not_found
 
-def translate_selection(selection: List[RankedCandidate], translator, source_lang:str, target_lang:str, deck_io: DeckIO) -> List[RankedCandidate]:
+def translate_selection(selection: List[Candidate], translator, source_lang:str, target_lang:str, deck_io: DeckIO) -> List[Candidate]:
     """
     Translate the selected candidates using the provided translator.
     Cache key: word: str, sentence: str, source_lang:str, target_lang:str

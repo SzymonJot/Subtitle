@@ -14,7 +14,8 @@ import logging
 from nlp.lexicon.schema import Stats
 from typing import Literal
 from pydantic import BaseModel
-from deck.deck_generation import select_candidates, score_and_rank, apply_constraints, pick_until_target, translate_selection, assemble_cards, render_export, collect_stats, build_metadata
+from deck.deck_generation.deck_generation import select_candidates, score_and_rank, apply_constraints, pick_until_target, translate_selection, assemble_cards, render_export, collect_stats, build_metadata
+from deck.schemas.schema import Deck
 
 load_dotenv()
 
@@ -32,7 +33,7 @@ def run_deck_pipeline(
     req: BuildDeckRequest,
     *,
     results_prefix: str = "results",
-) -> Tuple[BuiltDeck, bytes]:
+) -> Tuple[Deck, bytes]:
     """
     Pure pipeline runner. Deterministic given (analyzed_payload, req).
     No network, no DB, no storage here.

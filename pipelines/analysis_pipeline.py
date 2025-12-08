@@ -7,7 +7,7 @@ import os
 from typing import Dict, List, Tuple
 import time, unicodedata as ud
 from dotenv import load_dotenv
-from nlp.lexicon.schema import EpisodeDataProcessed, LemmaSV
+from nlp.lexicon.schema import AnalyzedEpisode, LemmaSV
 import json, unicodedata, time
 from typing import Dict, List
 import logging
@@ -55,7 +55,7 @@ def process_episode(file_bytes, adapter:ContentAdapter,lang_adapter:LangAdapter)
     # 6) finalize → JSON bytes (stable order)
     t5 = _t()
     
-    payload = EpisodeDataProcessed(episode_data_processed=lexicon,
+    payload = AnalyzedEpisode(episode_data_processed=lexicon,
                                    stats=Stats(
                                         total_tokens=sum(
                                         words_counted.values()),

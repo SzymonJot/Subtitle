@@ -6,10 +6,6 @@ from common.schemas import CacheEntry
 import logging
 from datetime import datetime
 
-
-SB = get_client(os.environ["SUPABASE_URL"], os.environ['SUPABASE_SERVICE_KEY'])
-
-
 class SBDeckIO:
     translation_table = 'cached_translations'
 

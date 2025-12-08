@@ -1,6 +1,7 @@
 from typing import Optional, Dict, List, Tuple
 from math import floor
 from collections import Counter, defaultdict
+from deck.schemas.schema import Candidate
 
 def _validate_caps(max_share_per_pos: Optional[Dict[str, float]]) -> None:
     """
@@ -20,13 +21,14 @@ def _caps_to_counts(deck_limit: int, max_share_per_pos: Optional[Dict[str, float
     """
     Convert cap shares to integer limits against the deck budget.
     We do NOT normalize if sum < 1.0 (leftover is allowed).
+    Output is a dictionary of POS -> count.
     """
     if not max_share_per_pos:
         return {}
     return {pos: max(0, floor(max(0.0, share) * deck_limit))
             for pos, share in max_share_per_pos.items()}
 
-def _normalize_targets(target_share_per_pos: Optional[Dict[str, float]]) -> Dict[str, float]:
+def _normalize_targets(target_share_per_pos: Dict[str, float]) -> Dict[str, float]:
     """
     Soft targets semantics: proportions to *aim for*.
     Normalize to sum = 1 so the 'need' math is stable even if sliders sum to ~0.98/1.02.
@@ -38,43 +40,43 @@ def _normalize_targets(target_share_per_pos: Optional[Dict[str, float]]) -> Dict
         return {k: 0.0 for k in target_share_per_pos}
     return {k: max(0.0, v) / total for k, v in target_share_per_pos.items()}
 
-def _bucketize_by_pos(candidates: List[RankedCandidate]) -> Dict[str, List[RankedCandidate]]:
+def _bucketize_by_pos(candidates: list[Candidate]) -> dict[str, list[Candidate]]:
     """Group candidates by POS. Each bucket sorted by score descending; drop zero coverage."""
-    buckets: Dict[str, List[RankedCandidate]] = defaultdict(list)
+    buckets: dict[str, list[Candidate]] = defaultdict(list)
     for rc in candidates:
-        if rc.get("cov_share", 0.0) > 0.0:
-            buckets[rc["pos"]].append(rc)
+        if rc.cov_share > 0.0:
+            buckets[rc.pos].append(rc)
     for pos, bucket in buckets.items():
-        bucket.sort(key=lambda x: x["score"], reverse=True)
-    return dict(buckets)
+        bucket.sort(key=lambda x: x.score, reverse=True)
+    return buckets
 
 def _is_eligible(pos: str,
-                buckets: Dict[str, List[RankedCandidate]],
+                buckets: dict[str, list[Candidate]],
                 pos_counts: Counter,
-                caps: Dict[str, int]) -> bool:
+                caps: dict[str, int]) -> bool:
     """Eligible = bucket non-empty AND under its hard cap (if any)."""
     if not buckets.get(pos):
         return False
     cap = caps.get(pos)
     return (cap is None) or (pos_counts.get(pos, 0) < cap)
 
-def _global_best_head(buckets: Dict[str, List[RankedCandidate]],
+def _global_best_head(buckets: Dict[str, List[Candidate]],
                      pos_counts: Counter,
-                     caps: Dict[str, int]) -> Tuple[Optional[str], Optional[RankedCandidate]]:
+                     caps: Dict[str, int]) -> Tuple[Optional[str], Optional[Candidate]]:
     """Return (pos, item) for the best available head across eligible buckets."""
     best_pos: Optional[str] = None
-    best_item: Optional[RankedCandidate] = None
+    best_item: Optional[Candidate] = None
     for p, bucket in buckets.items():
-        if not is_eligible(p, buckets, pos_counts, caps):
+        if not _is_eligible(p, buckets, pos_counts, caps):
             continue
         head = bucket[0]
-        if best_item is None or head["score"] > best_item["score"]:
+        if best_item is None or head.score > best_item.score:
             best_item, best_pos = head, p
     return best_pos, best_item
 
 def _compute_needs(pos_counts: Counter,
                    targets: Dict[str, float],
-                   buckets: Dict[str, List[RankedCandidate]],
+                   buckets: Dict[str, List[Candidate]],
                    caps: Dict[str, int],
                    alpha: float = 1.0) -> Dict[str, float]:
     """
@@ -90,7 +92,7 @@ def _compute_needs(pos_counts: Counter,
     denom = N + alpha * P
 
     for pos, t in targets.items():
-        if not is_eligible(pos, buckets, pos_counts, caps):
+        if not _is_eligible(pos, buckets, pos_counts, caps):
             needs[pos] = float("-inf")
             continue
         s_hat = (pos_counts.get(pos, 0) + alpha) / denom if denom > 0 else (1.0 / P)
@@ -101,14 +103,14 @@ def _compute_needs(pos_counts: Counter,
 # ----------------- Main picker -----------------
 
 def pick_until_target(
-    filtered_ranked: List[RankedCandidate],
+    filtered_ranked: list[Candidate],
     max_cards: Optional[int],
     target_coverage: Optional[float],
-    max_share_per_pos: Optional[Dict[str, float]] = None,     # hard caps (sum ≤ 1)
-    target_share_per_pos: Optional[Dict[str, float]] = None,  # soft targets (normalized)
+    max_share_per_pos: Optional[dict[str, float]] = None,     # hard caps (sum ≤ 1)
+    target_share_per_pos: Optional[dict[str, float]] = None,  # soft targets (normalized)
     hysteresis_eps: float = 0.02,    # ignore tiny needs near boundary
     score_gap_delta: float = 0.15,   # allow global best if it's ≥15% higher than the needed head
-) -> Tuple[List[RankedCandidate], Dict]:
+) -> Tuple[list[Candidate], dict]:
     """
     POS-aware greedy picker that respects hard caps and optionally steers toward a target mix.
     Stops at target_coverage or max_cards, or when candidates are exhausted.
@@ -117,13 +119,16 @@ def pick_until_target(
     if target_coverage is not None and not (0.0 <= target_coverage <= 1.0):
         raise ValueError("target_coverage must be within [0, 1].")
 
-    limit = max_cards if (max_cards is not None and max_cards > 0) else len(filtered_ranked)
+    limit = max_cards if (max_cards is not None and int(max_cards) > 0) else len(filtered_ranked)
+    # Max share per pos validation - sum <=1
     _validate_caps(max_share_per_pos)
+    # Convert cap shares to integer limits against the deck budget
     caps = _caps_to_counts(limit, max_share_per_pos)
+    # Normalize target shares to sum = 1
     targets = _normalize_targets(target_share_per_pos)
 
     buckets = _bucketize_by_pos(filtered_ranked)
-    picked: List[RankedCandidate] = []
+    picked: list[Candidate] = []
     pos_counts: Counter = Counter()
     coverage = 0.0
     reason = "exhausted"
@@ -147,7 +152,7 @@ def pick_until_target(
             buckets[g_pos].pop(0)
             picked.append(g_item)
             pos_counts[g_pos] += 1
-            coverage = min(1.0, coverage + float(g_item["cov_share"]))
+            coverage = min(1.0, coverage + g_item.cov_share)
             continue
 
         # --- Choose POS: soft need if provided; otherwise global best ---
@@ -161,7 +166,7 @@ def pick_until_target(
                 # Global-utility override: if global best is much stronger than the needed head, take it.
                 g_pos, g_item = _global_best_head(buckets, pos_counts, caps)
                 needed_head = buckets[pos_star][0] if buckets[pos_star] else None
-                if g_item and needed_head and g_item["score"] >= (1.0 + score_gap_delta) * needed_head["score"]:
+                if g_item and needed_head and g_item.score >= (1.0 + score_gap_delta) * needed_head.score:
                     chosen_pos = g_pos
                 else:
                     chosen_pos = pos_star
@@ -175,7 +180,7 @@ def pick_until_target(
         item = buckets[chosen_pos].pop(0)
         picked.append(item)
         pos_counts[chosen_pos] += 1
-        coverage = min(1.0, coverage + float(item["cov_share"]))
+        coverage = min(1.0, coverage + item.cov_share)
 
     report = {
         "picked_count": len(picked),

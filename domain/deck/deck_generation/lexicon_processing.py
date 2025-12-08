@@ -1,22 +1,11 @@
-import os
-import deepl
-import time
-import genanki
-import hashlib
-import html
-import regex as re
-from collections import Counter, defaultdict
-import unicodedata as ud
+import numpy as np
 from math import floor
-from typing import Dict, List, TypedDict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from nlp.lexicon.schema import AnalyzedEpisode
 from common.schemas import Deck, Card, OutputFormat, ExportOptions, BuiltDeck,BuildDeckRequest
-import langcodes
-import unicodedata
-from core.ports import DeckIO
 from typing import List, Dict, Optional
-from collections import defaultdict
-from deck.deck_generation.picker import pick_until_target
+from deck.deck_generation.candidates_picker import pick_until_target
+from deck.schemas.schema import Candidate
 
 ###########################################################
 # Aim of this module is to generate a deck of cards
@@ -31,34 +20,14 @@ from deck.deck_generation.picker import pick_until_target
 # 5. assemble_cards: Assemble card data from the selection and analyzed payload.
 ###########################################################
 
-class Candidate(TypedDict):
-    lemma: str
-    pos: str
-    forms: List[str]
-    freq: int
-    cov_share: float        
-    example: dict
-
-class RankedCandidate(TypedDict):
-    lemma: str
-    pos: str
-    forms: List[str]
-    freq: int
-    cov_share: float
-    score: float
-    example: dict
-    form_original_lang: str
-    sentence_original_lang: str
-    translated_word: str
-    translated_example: str
-
 def select_candidates(analyzed_episode: AnalyzedEpisode, req: BuildDeckRequest) -> List[Candidate]:
     """
     Select candidates from the lexicon based on the request parameters.
+    Build candidates list from the lexicon. Filters out known lemmas and pos not in request.
     """
     lexicon = analyzed_episode.episode_data_processed
     known_lemmas = set(req.exclude_known_lemmas or [])
-    allowed_pos = set(req.target_pos.keys() or [])
+    allowed_pos = set(req.target_share_per_pos.keys() or [])
 
     out: List[Candidate] = []
     for lemma, data in lexicon.items():
@@ -80,41 +49,26 @@ def select_candidates(analyzed_episode: AnalyzedEpisode, req: BuildDeckRequest) 
         ))
     return out
 
-def score_and_rank(candidates: List[Candidate], req: BuildDeckRequest, rng_seed: int) -> List[RankedCandidate]:
+def score_and_rank(candidates: List[Candidate], req: BuildDeckRequest) -> List[Candidate]:
     """
     Score and rank candidates based on request parameters.
+    Populates score field in candidates.
     """
-    
+    ### In the future - multiple ranking types based on req.difficulty_scoring
     ranked_candidates = []
-    candidates = sorted(candidates, key=lambda x: x['cov_share'], reverse=True)
+    candidates = sorted(candidates, key=lambda cand: cand.cov_share, reverse=True)
  
     for candidate in candidates:
-        candidate['score'] = candidate['cov_share']
-        ranked_candidates.append(RankedCandidate(**candidate))
+        candidate.score = candidate.cov_share
+        ranked_candidates.append(candidate)
 
     return ranked_candidates
- 
 
-def build_preview(selection: List[RankedCandidate], req: BuildDeckRequest) -> Tuple[bytes, str]:
-    """
-    Build a preview of the selected candidates in a simple text format.
-    """
-    max_card = [range(1,len(selection),50)]
-    target = [range(0,100,5)]
-    lines = []
-    for cov_tgt in target:
-        for tgt in max_card:
-            data = pick_until_target(selection, tgt, req.target_coverage, req.max_share_per_pos)
-        
-    preview_text = "\n".join(lines)
-    return preview_text.encode("utf-8"), "text/plain"
-
-
-def _select_example(
-    selection: List[RankedCandidate],
+def select_example(
+    selection: List[Candidate],
+    req: BuildDeckRequest,
     analyzed_payload: AnalyzedEpisode,
-    req: BuildDeckRequest
-) -> List[RankedCandidate]:
+) -> List[Candidate]:
     """
     For each candidate and for each of its forms found in analyzed examples,
     choose exactly one example sentence and store under candidate['example'][form].
@@ -128,9 +82,11 @@ def _select_example(
     seen_sentences = set()
 
     def wc(s: str) -> int:
+        """Sentence word count"""
         return len(s.split())
 
     def pick_best(examples: List[str]) -> Optional[str]:
+        """Pick the best example sentence"""
         if not examples:
             return None
         # Apply length bounds
@@ -149,67 +105,38 @@ def _select_example(
             return multi[0]
 
     for cand in selection:
-        lemma = cand["lemma"]
+        lemma = cand.lemma
         data = analyzed_payload.episode_data_processed.get(lemma)
-        cand["example"] = {}  # prepare output container
-
+        
         if not data or not getattr(data, "examples", None):
-            continue
+            raise ValueError(f"No examples found for lemma: {lemma}")
 
         # data.examples is expected to be: Dict[str form, List[str sentences]]
         for form, example in data.examples.items():
             chosen = pick_best(example)
             if chosen:
-                cand["form_original_lang"] = [form]
-                cand["sentence_original_lang"] = example
-
+                cand.form_original_lang = form
+                cand.sentence_original_lang = chosen
+            else:
+                raise ValueError(f"No valid example found for form: {form}")
     return selection
 
-def assemble_cards(selection: List[RankedCandidate], analyzed_payload: AnalyzedEpisode, req: BuildDeckRequest) -> List[Card]:
-    """
-    Assemble card data from the selection and analyzed payload.
-    Map RankedCandidate fields to Card fields
-    Front: Lemma + Sentence (original)
-    Back: Translated Word + Translated Sentence
-    """
-    # 1. Select examples
-    selection_with_examples = _select_example(selection, analyzed_payload, req)
-    
-    cards = []
-    for item in selection_with_examples:
-     
-        c = Card.from_minimal(
-            lemma=item['lemma'],
-            sentence=item.get('sentence_original_lang'),
-            pos=item['pos'],
-            tags=[item['pos']],
-            build_version=req.build_version or "v1"
-        )
 
-        c.prompt = item['lemma']
-        cards.append(c)
-        
-    return cards
-
-def build_deck(req: BuildDeckRequest, stats: Dict, file_bytes: bytes, format_: OutputFormat, result_path: str) -> BuiltDeck:
+def deck_report(selection: List[Candidate], req: BuildDeckRequest) -> Dict:
     """
-    Build the final deck metadata object.
+    Return deck report based on selection and request parameters.
     """
-    return BuiltDeck(
-        episode_id=req.episode_id,
-        analyzed_hash=req.analyzed_hash,
-        idempotency_key=req.idempotency_key(),
-        build_version=req.build_version or "v1",
-        format=format_,
-        result_path=result_path,
-        size_bytes=len(file_bytes),
-        checksum_sha256=hashlib.sha256(file_bytes).hexdigest(),
-        card_count=stats.get('card_count', 0),
-        unique_lemmas=stats.get('unique_lemmas', 0),
-        achieved_coverage=stats.get('achieved_coverage', 0.0),
-        cached=False
+    _, repr = pick_until_target(
+        selection, 
+        req.max_cards,
+        req.target_coverage,
+        req.target_share_per_pos, 
+        req.max_share_per_pos, 
+        req.max_share_per_pos
     )
-
+    
+    return repr
+    
 if __name__ == "__main__":
     pass
     
