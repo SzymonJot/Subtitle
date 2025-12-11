@@ -1,11 +1,12 @@
-from dataclasses import dataclass
-from typing import Dict, Any, List
 from abc import ABC, abstractmethod
-from nlp.lexicon.schema import SentenceRec
+from typing import Any, List
+
+from domain.nlp.lexicon.schema import SentenceRec
+
 # Sentence unit from content adapter
 
-class ContentAdapter(ABC):
 
+class ContentAdapter(ABC):
     @abstractmethod
     def clean_for_sentence(self, file: Any) -> List[SentenceRec]:
         """
@@ -19,6 +20,3 @@ class ContentAdapter(ABC):
         Transform list of sentences to tokenized words adapter
         """
         raise NotImplementedError
-    
-   
-    

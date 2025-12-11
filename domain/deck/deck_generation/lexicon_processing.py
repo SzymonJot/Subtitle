@@ -1,16 +1,14 @@
-import numpy as np
-from math import floor
-from typing import Dict, List, Optional, Tuple
-from nlp.lexicon.schema import AnalyzedEpisode
-from common.schemas import Deck, Card, OutputFormat, ExportOptions, BuiltDeck,BuildDeckRequest
-from typing import List, Dict, Optional
-from deck.deck_generation.candidates_picker import pick_until_target
-from deck.schemas.schema import Candidate
+from typing import Dict, List, Optional
+
+from common.schemas import BuildDeckRequest
+from domain.deck.deck_generation.candidates_picker import pick_until_target
+from domain.deck.schemas.schema import Candidate
+from domain.nlp.lexicon.schema import AnalyzedEpisode
 
 ###########################################################
 # Aim of this module is to generate a deck of cards
-# from a given analyzed lexicon. 
-# 
+# from a given analyzed lexicon.
+#
 # The module is split into several functions:
 # 1. select_candidates: Select candidates from the lexicon based on the request parameters.
 # 2. score_and_rank: Score and rank candidates based on request parameters.
@@ -20,7 +18,10 @@ from deck.schemas.schema import Candidate
 # 5. assemble_cards: Assemble card data from the selection and analyzed payload.
 ###########################################################
 
-def select_candidates(analyzed_episode: AnalyzedEpisode, req: BuildDeckRequest) -> List[Candidate]:
+
+def select_candidates(
+    analyzed_episode: AnalyzedEpisode, req: BuildDeckRequest
+) -> List[Candidate]:
     """
     Select candidates from the lexicon based on the request parameters.
     Build candidates list from the lexicon. Filters out known lemmas and pos not in request.
@@ -34,22 +35,27 @@ def select_candidates(analyzed_episode: AnalyzedEpisode, req: BuildDeckRequest) 
         pos = data.pos
         if allowed_pos and pos not in allowed_pos:
             continue
-        if lemma in known_lemmas:     
+        if lemma in known_lemmas:
             continue
 
         freq_total = sum(data.forms_freq.values())
         cov_total = sum(data.forms_cov.values())
 
-        out.append(Candidate(
-            lemma=lemma,
-            pos=pos,
-            forms=list(set(data.forms)),
-            freq=freq_total,
-            cov_share=cov_total,      
-        ))
+        out.append(
+            Candidate(
+                lemma=lemma,
+                pos=pos,
+                forms=list(set(data.forms)),
+                freq=freq_total,
+                cov_share=cov_total,
+            )
+        )
     return out
 
-def score_and_rank(candidates: List[Candidate], req: BuildDeckRequest) -> List[Candidate]:
+
+def score_and_rank(
+    candidates: List[Candidate], req: BuildDeckRequest
+) -> List[Candidate]:
     """
     Score and rank candidates based on request parameters.
     Populates score field in candidates.
@@ -57,12 +63,13 @@ def score_and_rank(candidates: List[Candidate], req: BuildDeckRequest) -> List[C
     ### In the future - multiple ranking types based on req.difficulty_scoring
     ranked_candidates = []
     candidates = sorted(candidates, key=lambda cand: cand.cov_share, reverse=True)
- 
+
     for candidate in candidates:
         candidate.score = candidate.cov_share
         ranked_candidates.append(candidate)
 
     return ranked_candidates
+
 
 def select_example(
     selection: List[Candidate],
@@ -107,7 +114,7 @@ def select_example(
     for cand in selection:
         lemma = cand.lemma
         data = analyzed_payload.episode_data_processed.get(lemma)
-        
+
         if not data or not getattr(data, "examples", None):
             raise ValueError(f"No examples found for lemma: {lemma}")
 
@@ -127,18 +134,16 @@ def deck_report(selection: List[Candidate], req: BuildDeckRequest) -> Dict:
     Return deck report based on selection and request parameters.
     """
     _, repr = pick_until_target(
-        selection, 
+        selection,
         req.max_cards,
         req.target_coverage,
-        req.target_share_per_pos, 
-        req.max_share_per_pos, 
-        req.max_share_per_pos
+        req.target_share_per_pos,
+        req.max_share_per_pos,
+        req.max_share_per_pos,
     )
-    
+
     return repr
-    
+
+
 if __name__ == "__main__":
     pass
-    
-   
-   

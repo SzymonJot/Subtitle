@@ -1,7 +1,9 @@
-from typing import Optional, Dict, List, Tuple
-from math import floor
 from collections import Counter, defaultdict
-from deck.schemas.schema import Candidate
+from math import floor
+from typing import Dict, List, Optional, Tuple
+
+from domain.deck.schemas.schema import Candidate
+
 
 def _validate_caps(max_share_per_pos: Optional[Dict[str, float]]) -> None:
     """
@@ -17,7 +19,10 @@ def _validate_caps(max_share_per_pos: Optional[Dict[str, float]]) -> None:
             "Lower the shares or spread across more POS."
         )
 
-def _caps_to_counts(deck_limit: int, max_share_per_pos: Optional[Dict[str, float]]) -> Dict[str, int]:
+
+def _caps_to_counts(
+    deck_limit: int, max_share_per_pos: Optional[Dict[str, float]]
+) -> Dict[str, int]:
     """
     Convert cap shares to integer limits against the deck budget.
     We do NOT normalize if sum < 1.0 (leftover is allowed).
@@ -25,8 +30,11 @@ def _caps_to_counts(deck_limit: int, max_share_per_pos: Optional[Dict[str, float
     """
     if not max_share_per_pos:
         return {}
-    return {pos: max(0, floor(max(0.0, share) * deck_limit))
-            for pos, share in max_share_per_pos.items()}
+    return {
+        pos: max(0, floor(max(0.0, share) * deck_limit))
+        for pos, share in max_share_per_pos.items()
+    }
+
 
 def _normalize_targets(target_share_per_pos: Dict[str, float]) -> Dict[str, float]:
     """
@@ -40,6 +48,7 @@ def _normalize_targets(target_share_per_pos: Dict[str, float]) -> Dict[str, floa
         return {k: 0.0 for k in target_share_per_pos}
     return {k: max(0.0, v) / total for k, v in target_share_per_pos.items()}
 
+
 def _bucketize_by_pos(candidates: list[Candidate]) -> dict[str, list[Candidate]]:
     """Group candidates by POS. Each bucket sorted by score descending; drop zero coverage."""
     buckets: dict[str, list[Candidate]] = defaultdict(list)
@@ -50,19 +59,23 @@ def _bucketize_by_pos(candidates: list[Candidate]) -> dict[str, list[Candidate]]
         bucket.sort(key=lambda x: x.score, reverse=True)
     return buckets
 
-def _is_eligible(pos: str,
-                buckets: dict[str, list[Candidate]],
-                pos_counts: Counter,
-                caps: dict[str, int]) -> bool:
+
+def _is_eligible(
+    pos: str,
+    buckets: dict[str, list[Candidate]],
+    pos_counts: Counter,
+    caps: dict[str, int],
+) -> bool:
     """Eligible = bucket non-empty AND under its hard cap (if any)."""
     if not buckets.get(pos):
         return False
     cap = caps.get(pos)
     return (cap is None) or (pos_counts.get(pos, 0) < cap)
 
-def _global_best_head(buckets: Dict[str, List[Candidate]],
-                     pos_counts: Counter,
-                     caps: Dict[str, int]) -> Tuple[Optional[str], Optional[Candidate]]:
+
+def _global_best_head(
+    buckets: Dict[str, List[Candidate]], pos_counts: Counter, caps: Dict[str, int]
+) -> Tuple[Optional[str], Optional[Candidate]]:
     """Return (pos, item) for the best available head across eligible buckets."""
     best_pos: Optional[str] = None
     best_item: Optional[Candidate] = None
@@ -74,11 +87,14 @@ def _global_best_head(buckets: Dict[str, List[Candidate]],
             best_item, best_pos = head, p
     return best_pos, best_item
 
-def _compute_needs(pos_counts: Counter,
-                   targets: Dict[str, float],
-                   buckets: Dict[str, List[Candidate]],
-                   caps: Dict[str, int],
-                   alpha: float = 1.0) -> Dict[str, float]:
+
+def _compute_needs(
+    pos_counts: Counter,
+    targets: Dict[str, float],
+    buckets: Dict[str, List[Candidate]],
+    caps: Dict[str, int],
+    alpha: float = 1.0,
+) -> Dict[str, float]:
     """
     Smoothed need per POS: need = target_share - current_share,
     where current_share ≈ (count + α) / (N + α * P). Ineligible POS -> -inf.
@@ -102,14 +118,17 @@ def _compute_needs(pos_counts: Counter,
 
 # ----------------- Main picker -----------------
 
+
 def pick_until_target(
     filtered_ranked: list[Candidate],
     max_cards: Optional[int],
     target_coverage: Optional[float],
-    max_share_per_pos: Optional[dict[str, float]] = None,     # hard caps (sum ≤ 1)
-    target_share_per_pos: Optional[dict[str, float]] = None,  # soft targets (normalized)
-    hysteresis_eps: float = 0.02,    # ignore tiny needs near boundary
-    score_gap_delta: float = 0.15,   # allow global best if it's ≥15% higher than the needed head
+    max_share_per_pos: Optional[dict[str, float]] = None,  # hard caps (sum ≤ 1)
+    target_share_per_pos: Optional[
+        dict[str, float]
+    ] = None,  # soft targets (normalized)
+    hysteresis_eps: float = 0.02,  # ignore tiny needs near boundary
+    score_gap_delta: float = 0.15,  # allow global best if it's ≥15% higher than the needed head
 ) -> Tuple[list[Candidate], dict]:
     """
     POS-aware greedy picker that respects hard caps and optionally steers toward a target mix.
@@ -119,7 +138,11 @@ def pick_until_target(
     if target_coverage is not None and not (0.0 <= target_coverage <= 1.0):
         raise ValueError("target_coverage must be within [0, 1].")
 
-    limit = max_cards if (max_cards is not None and int(max_cards) > 0) else len(filtered_ranked)
+    limit = (
+        max_cards
+        if (max_cards is not None and int(max_cards) > 0)
+        else len(filtered_ranked)
+    )
     # Max share per pos validation - sum <=1
     _validate_caps(max_share_per_pos)
     # Convert cap shares to integer limits against the deck budget
@@ -136,19 +159,24 @@ def pick_until_target(
     while True:
         # --- Stop checks (top-of-loop prevents “one extra pick”) ---
         if target_coverage is not None and coverage >= target_coverage - 1e-12:
-            reason = "target_coverage"; break
+            reason = "target_coverage"
+            break
         if len(picked) >= limit:
-            reason = "max_cards"; break
+            reason = "max_cards"
+            break
         if all(len(b) == 0 for b in buckets.values()):
-            reason = "exhausted"; break
+            reason = "exhausted"
+            break
         if not any(_is_eligible(p, buckets, pos_counts, caps) for p in buckets):
-            reason = "exhausted"; break
+            reason = "exhausted"
+            break
 
         # --- Seed with global best on the first iteration ---
         if not picked:
             g_pos, g_item = _global_best_head(buckets, pos_counts, caps)
             if g_item is None:
-                reason = "exhausted"; break
+                reason = "exhausted"
+                break
             buckets[g_pos].pop(0)
             picked.append(g_item)
             pos_counts[g_pos] += 1
@@ -162,11 +190,17 @@ def pick_until_target(
         if needs:
             pos_star = max(needs, key=needs.get)
             need_star = needs[pos_star]
-            if need_star > hysteresis_eps and _is_eligible(pos_star, buckets, pos_counts, caps):
+            if need_star > hysteresis_eps and _is_eligible(
+                pos_star, buckets, pos_counts, caps
+            ):
                 # Global-utility override: if global best is much stronger than the needed head, take it.
                 g_pos, g_item = _global_best_head(buckets, pos_counts, caps)
                 needed_head = buckets[pos_star][0] if buckets[pos_star] else None
-                if g_item and needed_head and g_item.score >= (1.0 + score_gap_delta) * needed_head.score:
+                if (
+                    g_item
+                    and needed_head
+                    and g_item.score >= (1.0 + score_gap_delta) * needed_head.score
+                ):
                     chosen_pos = g_pos
                 else:
                     chosen_pos = pos_star
@@ -174,7 +208,8 @@ def pick_until_target(
         if chosen_pos is None:
             chosen_pos, _ = _global_best_head(buckets, pos_counts, caps)
         if chosen_pos is None:
-            reason = "exhausted"; break
+            reason = "exhausted"
+            break
 
         # --- Commit pick ---
         item = buckets[chosen_pos].pop(0)

@@ -1,20 +1,29 @@
-import json,ast
-from common.schemas import BuildDeckRequest
-from nlp.lexicon.schema import AnalyzedEpisode
-from deck.deck_generation.lexicon_processing import select_candidates, score_and_rank, select_example, deck_report
-from deck.deck_generation.candidates_picker import pick_until_target
+import ast
+import json
 from pprint import pprint
+
+from common.schemas import BuildDeckRequest
+from domain.deck.deck_generation.candidates_picker import pick_until_target
+from domain.deck.deck_generation.lexicon_processing import (
+    deck_report,
+    score_and_rank,
+    select_candidates,
+    select_example,
+)
+from domain.nlp.lexicon.schema import AnalyzedEpisode
+
 ## Transform to pytest later
 srt_path = "tests/integ/data_preview.txt"
 
 with open(srt_path, "r", encoding="utf-8") as f:
     srt_content = f.read()
 
-raw_json_str = ast.literal_eval(srt_content)   
+raw_json_str = ast.literal_eval(srt_content)
 loaded_analysis = json.loads(raw_json_str)
 
 ###############################################
 from tests.integ.example_request import request
+
 ###############################################
 
 episode_data = AnalyzedEpisode(**loaded_analysis)
@@ -22,52 +31,55 @@ build_request = BuildDeckRequest(**request)
 
 selected = select_candidates(episode_data, build_request)
 pprint(selected[:2])
-print('#'*20)
+print("#" * 20)
 ranked = score_and_rank(selected, build_request)
 pprint(ranked[:2])
-print('#'*20)
+print("#" * 20)
 selected = select_example(ranked, build_request, episode_data)
 pprint(selected[:2])
-print('#'*20)
-picked, rep = pick_until_target(ranked, build_request.max_cards, build_request.target_coverage, build_request.max_share_per_pos, build_request.target_share_per_pos)
+print("#" * 20)
+picked, rep = pick_until_target(
+    ranked,
+    build_request.max_cards,
+    build_request.target_coverage,
+    build_request.max_share_per_pos,
+    build_request.target_share_per_pos,
+)
 pprint(picked[:2])
 pprint(len(picked))
 pprint(rep)
-print('#'*20)
+print("#" * 20)
 ch = deck_report(selected, build_request)
 pprint(ch)
 
 print("Test completed")
 #
-#print(len(set(episode_data.episode_data_processed)))
-#cands = select_candidates(episode_data,build_request)
-#s = choose_example(cands, episode_data, build_request)
-#print(s)
-#translate_selection(s,'t','t')
-    #print(len(cands))
+# print(len(set(episode_data.episode_data_processed)))
+# cands = select_candidates(episode_data,build_request)
+# s = choose_example(cands, episode_data, build_request)
+# print(s)
+# translate_selection(s,'t','t')
+# print(len(cands))
 #
-    #print(sum([x['cov_share'] for x in cands]))
-   #
-    #
-    #print(len(cands))
-    #cands = score_and_rank(cands,req,1)
-    #contr = apply_constraints(cands,req)
-    #print(sum(c['cov_share'] for c in cands))
-    #print("Pool size:", len(contr))
-    #
-    #print("Sum cov_share:", sum(c['cov_share'] for c in contr))
-    ##print(cands)
-    #
-    #picked, rep = pick_until_target(
-    #filtered_ranked=contr,                      # List[RankedCandidate] (dicts)
-    #max_cards=req.max_cards,
-    #target_coverage=req.target_coverage,
-    #max_share_per_pos=req.max_share_per_pos,    # e.g., {"NOUN": 0.5, "VERB": 0.5}
-    #target_share_per_pos=req.target_share_per_pos,  # optional, e.g., {"NOUN": 0.5, "VERB": 0.5}
-    #)
+# print(sum([x['cov_share'] for x in cands]))
+#
+#
+# print(len(cands))
+# cands = score_and_rank(cands,req,1)
+# contr = apply_constraints(cands,req)
+# print(sum(c['cov_share'] for c in cands))
+# print("Pool size:", len(contr))
+#
+# print("Sum cov_share:", sum(c['cov_share'] for c in contr))
+##print(cands)
+#
+# picked, rep = pick_until_target(
+# filtered_ranked=contr,                      # List[RankedCandidate] (dicts)
+# max_cards=req.max_cards,
+# target_coverage=req.target_coverage,
+# max_share_per_pos=req.max_share_per_pos,    # e.g., {"NOUN": 0.5, "VERB": 0.5}
+# target_share_per_pos=req.target_share_per_pos,  # optional, e.g., {"NOUN": 0.5, "VERB": 0.5}
+# )
 
 
-    #assert all(x['pos'] == 'NOUN' or x['pos'] == 'VERB' for x in cands)
-
-
-    
+# assert all(x['pos'] == 'NOUN' or x['pos'] == 'VERB' for x in cands)

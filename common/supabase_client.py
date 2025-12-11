@@ -1,13 +1,18 @@
 import os
-from supabase import create_client, Client
+
 from dotenv import load_dotenv
-load_dotenv() 
+from supabase import Client, create_client
+
+load_dotenv()
 
 
-def get_client(url: str, key: str) -> Client:
-    supabase: Client = create_client(url, key)
+def get_client() -> Client:
+    supabase: Client = create_client(
+        os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_KEY")
+    )
     return supabase
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     url: str = os.environ.get("SUPABASE_URL")
     key: str = os.environ.get("SUPABASE_KEY")

@@ -1,14 +1,19 @@
-from pydantic import BaseModel, Field
-from typing import Optional, Literal
 import hashlib
 import json
+from typing import Literal, Optional
+
+from pydantic import BaseModel
+
 
 class Candidate(BaseModel):
     lemma: str
     pos: str
     forms: list[str]
     freq: int
-    cov_share: float  
+    cov_share: float
+
+    source_lang_tag: Optional[str] = None
+    target_lang_tag: Optional[str] = None
 
     examples: Optional[dict] = None
     score: Optional[float] = None
@@ -19,22 +24,25 @@ class Candidate(BaseModel):
     translated_word: Optional[str] = None
     translated_example: Optional[str] = None
 
+
 POS = Literal["NOUN", "VERB", "ADJ", "ADV"]
 OutputFormat = Literal["anki", "quizlet", "csv"]
 
 # ---------- Simple Card ----------
+
 
 class Card(BaseModel):
     """
     Minimal unit for study/export.
     Keep only the fields you actually render or filter by.
     """
-    id: str                           # stable hash from contents
-    lemma: str                        # canonical key (e.g., 'gå')
-    prompt: str                       # what user sees first
-    answer: str                       # answer side
-    sentence: Optional[str] = None    # example sentence (optional)
-    pos: Optional[POS] = None         # part of speech
+
+    id: str  # stable hash from contents
+    lemma: str  # canonical key (e.g., 'gå')
+    prompt: str  # what user sees first
+    answer: str  # answer side
+    sentence: Optional[str] = None  # example sentence (optional)
+    pos: Optional[POS] = None  # part of speech
 
     @staticmethod
     def make_id(*parts: str) -> str:
@@ -53,7 +61,7 @@ class Card(BaseModel):
         pos: Optional[POS] = None,
         build_version: str = "v1",
         template_id: str = "basic",
-    ) -> Card:
+    ) -> "Card":
         cid = cls.make_id(lemma, sentence or "", pos or "", build_version, template_id)
         return cls(
             id=cid,
@@ -61,13 +69,15 @@ class Card(BaseModel):
             prompt=prompt,
             answer=answer,
             sentence=sentence,
-            pos=pos
+            pos=pos,
         )
+
 
 class Deck(BaseModel):
     """
     Minimal deck with just enough metadata to cache/export and show quick stats.
     """
+
     episode_id: str
     analyzed_hash: str
     build_version: str
@@ -78,8 +88,8 @@ class Deck(BaseModel):
     # quick stats / cache hints
     card_count: int
     unique_lemmas: int
-    achieved_coverage: float = 0.0     # 0..1 (fill if you compute it upstream)
-    idempotency_key: str               # hash of (analyzed_hash + knobs/version)
+    achieved_coverage: float = 0.0  # 0..1 (fill if you compute it upstream)
+    idempotency_key: str  # hash of (analyzed_hash + knobs/version)
     target_lang_back: bool = True
 
     @staticmethod
@@ -97,8 +107,8 @@ class Deck(BaseModel):
         out_format: OutputFormat,
         cards: list[Card],
         achieved_coverage: float = 0.0,
-        knobs_fingerprint: str = ""   # e.g., dump of BuildDeckRequest knobs you consider material
-    ) -> Deck:
+        knobs_fingerprint: str = "",  # e.g., dump of BuildDeckRequest knobs you consider material
+    ) -> "Deck":
         # quick stats
         card_count = len(cards)
         unique_lemmas = len({c.lemma for c in cards})
@@ -115,6 +125,5 @@ class Deck(BaseModel):
             card_count=card_count,
             unique_lemmas=unique_lemmas,
             achieved_coverage=achieved_coverage,
-            idempotency_key=idem
+            idempotency_key=idem,
         )
-
