@@ -19,3 +19,8 @@ STATUS_FAILED = "failed"
 EXT_SRT = ".srt"
 
 BUILD_VERSION = "v1"
+
+# Supabase Tables
+CARDS_TABLE = "cards"
+DECKS_TABLE = "decks"
+CACHED_TRANSLATIONS_TABLE = "cached_translations"

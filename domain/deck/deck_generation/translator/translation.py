@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import re
 import time
 import unicodedata
@@ -63,7 +64,7 @@ def _create_id_translation_cache(
 def _look_up_translation_from_cache(
     candidates_to_check: list[Candidate],
     deck_io: DeckIO,
-) -> dict[str, Candidate]:
+) -> dict[str, dict]:
     """
     Function returns the candidates that matched cache
     """
@@ -108,8 +109,8 @@ def _find_cached_translation_batch(
             )
             cached_candidate = res.get(cache_id, None)
             if cached_candidate:
-                candidate.translated_word = cached_candidate.translated_word
-                candidate.translated_example = cached_candidate.translated_example
+                candidate.translated_word = cached_candidate["word_target_lang"]
+                candidate.translated_example = cached_candidate["sentence_target_lang"]
                 cached_translation.append(candidate)
             else:
                 to_translate.append(candidate)
@@ -120,16 +121,14 @@ def _find_cached_translation_batch(
 def _tag_first(s, target):
     # case-insensitive, whole-word; preserves original casing in the sentence
     pattern = re.compile(rf"\b{re.escape(target)}\b", flags=re.IGNORECASE)
-    return pattern.sub(lambda m: "<term>" + m.group(0) + "</term>", s, count=1)
+    s = pattern.sub(lambda m: "<x>" + m.group(0) + "</x>", s, count=1)
+    return s
 
 
 def _extract_term(target_text: str) -> str:
-    a, b = target_text.find("<term>"), target_text.find("</term>")
+    a, b = target_text.find("<x>"), target_text.find("</x>")
     if a != -1 and b != -1 and b > a:
-        return target_text[a + 6 : b]
-    a, b = target_text.find("&lt;term&gt;"), target_text.find("&lt;/term&gt;")
-    if a != -1 and b != -1 and b > a:
-        return target_text[a + 12 : b]
+        return target_text[a + 3 : b]
     return ""
 
 
@@ -184,12 +183,16 @@ def translate_selection(
         form = candidate.form_original_lang
         sentence = candidate.sentence_original_lang
         sentence_tagged = _tag_first(sentence, form)
+        logging.info(f"Translating {sentence_tagged}")
 
         try:
             res = translator.translate(
                 sentence_tagged,
                 target_lang=candidate.target_lang_tag,
                 source_lang=candidate.source_lang_tag,
+            )
+            logging.info(
+                f"Translated {candidate.form_original_lang} in {candidate.sentence_original_lang}"
             )
 
         except deepl.TooManyRequestsException:
@@ -201,16 +204,18 @@ def translate_selection(
             )
 
         if res == "":
-            print(
+            raise Exception(
                 f"Failed to translate {candidate.form_original_lang} in {candidate.sentence_original_lang}"
             )
         target_lang_sentence = res
+        logging.info("Translated sentence: " + target_lang_sentence)
         target_lang_word = _extract_term(target_lang_sentence)
+        logging.info("Extracted term: " + target_lang_word)
 
         candidate.translated_example = target_lang_sentence
         candidate.translated_word = target_lang_word
         try:
             _cache_translation(candidate, deck_io)
         except Exception as e:
-            raise Exception(f"Failed to cache translation: {e}")
+            raise Exception(f"Failed to cache translation: {e}, Candidate: {candidate}")
     return candidates_cached + candidates_to_translate

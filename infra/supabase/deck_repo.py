@@ -1,19 +1,16 @@
 import logging
-from dataclasses import asdict
 from datetime import datetime
 from typing import Any
 
+from common.constants import CACHED_TRANSLATIONS_TABLE, CARDS_TABLE, DECKS_TABLE
 from common.schemas import CacheEntry
+from common.supabase_client import get_client
 from domain.deck.schemas.schema import Card, Deck
 
 
 class SBDeckIO:
-    translation_table = "cached_translations"
-    cards_table = "cards"
-    decks_table = "decks"
-
-    def __init__(self, sb):
-        self.sb = sb
+    def __init__(self):
+        self.sb = get_client()
 
     def get_cached(self, ids: list[str]) -> dict[str, dict[str, Any]]:
         """
@@ -21,15 +18,15 @@ class SBDeckIO:
         """
 
         res = (
-            self.sb.table(self.translation_table)
+            self.sb.table(CACHED_TRANSLATIONS_TABLE)
             .select("*")
-            .in_("cache_id", ids)
+            .in_("id", ids)
             .execute()
         )
 
         rows = res.data or []
 
-        return {row["cache_id"]: row for row in rows}
+        return {row["id"]: row for row in rows}
 
     def upsert_cache_translation(self, cache_entries: list[CacheEntry]) -> dict:
         """
@@ -38,10 +35,10 @@ class SBDeckIO:
         to_upsert = []
 
         for entry in cache_entries:
-            dc = {k: str(v) for k, v in asdict(entry).items()}
+            dc = {k: str(v) for k, v in entry.items()}
             to_upsert.append(dc)
 
-        res = self.sb.table(self.translation_table).upsert(to_upsert).execute()
+        res = self.sb.table(CACHED_TRANSLATIONS_TABLE).upsert(to_upsert).execute()
 
         upserted = res.data or []
 
@@ -60,7 +57,7 @@ class SBDeckIO:
             dc["deck_id"] = deck_id
             to_upsert.append(dc)
 
-        res = self.sb.table(self.cards_table).upsert(to_upsert).execute()
+        res = self.sb.table(CARDS_TABLE).upsert(to_upsert).execute()
 
         upserted = res.data or []
 
@@ -76,7 +73,7 @@ class SBDeckIO:
         # Map Pydantic fields to DB columns
         dc = {
             "id": deck.id,
-            "analyzed_hash": deck.analyzed_hash,
+            "job_id": deck.job_id,
             "build_version": deck.build_version,
             "card_count": deck.card_count,
             "request_params": request_params,
@@ -84,7 +81,7 @@ class SBDeckIO:
             "stopped_reason": deck.stopped_reason,
             # Add other fields if/when added to SQL (e.g. achieved_coverage)
         }
-        res = self.sb.table(self.decks_table).upsert(dc).execute()
+        res = self.sb.table(DECKS_TABLE).upsert(dc).execute()
 
         upserted = res.data or []
 

@@ -54,7 +54,7 @@ class Deck(BaseModel):
 
     id: str
     episode_name: str
-    analyzed_hash: str
+    job_id: str
     build_version: str
     # quick stats
     card_count: int

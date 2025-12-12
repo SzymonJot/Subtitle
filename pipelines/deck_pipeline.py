@@ -3,7 +3,6 @@ import uuid
 from typing import Any
 
 from common.schemas import BuildDeckRequest
-from common.supabase_client import get_client
 from core.ports import DeckIO
 from domain.deck.deck_generation.deck_generation import assemble_cards
 from domain.deck.deck_generation.lexicon_processing import (
@@ -64,10 +63,12 @@ def run_deck_pipeline(
 
     deck_id = str(uuid.uuid4())
 
+    stats["deck_id"] = deck_id
+
     deck = Deck(
         id=deck_id,
-        episode_name=analyzed_episode.episode_name,
-        analyzed_hash=req.analyzed_hash,
+        episode_name=req.deck_name,
+        job_id=req.job_id,
         build_version=req.build_version,
         card_count=len(cards),
         achieved_coverage=stats["achieved_coverage"],
@@ -83,6 +84,8 @@ def run_deck_pipeline(
 def run_preview_pipeline(
     analyzed_episode: AnalyzedEpisode,
     req: BuildDeckRequest,
+    translator: Translator,
+    deck_io: DeckIO,
 ) -> list[Card]:
     """
     Run pipeline up to card assembly for preview.
@@ -101,8 +104,6 @@ def run_preview_pipeline(
     selection = pick_until_target(ranked, req)
 
     # 5) Translate
-    translator = Translator()
-    deck_io = DeckIO(get_client())
     selection_with_tx = translate_selection(selection, translator, deck_io)
 
     cards = assemble_cards(selection_with_tx, req)

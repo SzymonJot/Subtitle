@@ -1,11 +1,14 @@
-from nlp.content.content_adapter import ContentAdapter
-from typing import List, Any
-from nlp.lexicon.schema import SentenceRec
+from typing import Any, List
+
 import regex as re
+
+from domain.nlp.content.content_adapter import ContentAdapter
+from domain.nlp.lexicon.schema import SentenceRec
+
 
 class SRTAdapter(ContentAdapter):
     _SRT_TIME_RE = re.compile(
-        r'^\d{2}:\d{2}:\d{2}[,\.]\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}[,\.]\d{3}$'
+        r"^\d{2}:\d{2}:\d{2}[,\.]\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}[,\.]\d{3}$"
     )
     _SENT_END_RE = re.compile(
         r"""
@@ -14,32 +17,31 @@ class SRTAdapter(ContentAdapter):
         ["')\]]*
         \s+
         """,
-        re.IGNORECASE | re.VERBOSE
-    )   
+        re.IGNORECASE | re.VERBOSE,
+    )
 
     def _clean_line(self, line):
-        line = line.replace('-','')
-        line = line.replace('...','')
+        line = line.replace("-", "")
+        line = line.replace("...", "")
         line = line.strip()
 
-        if line.endswith(','):
-            line = line [:-1]
+        if line.endswith(","):
+            line = line[:-1]
 
-        line = line.replace('  ', ' ')
+        line = line.replace("  ", " ")
         line = line.strip()
         return line
 
     def _split_sentences(self, text: str) -> list[str]:
         return [s.strip() for s in self._SENT_END_RE.split(text) if s.strip()]
 
-    
     def _read_file(self, srt_file: Any) -> str:
         """
         Reads an SRT file and extracts the text content from it.
         Args:
             srt_file (Any): The SRT file to read.
         """
-     
+
         return srt_file.decode("utf-8")
 
     def clean_for_sentence(self, srt_file: Any) -> List[SentenceRec]:
@@ -52,9 +54,9 @@ class SRTAdapter(ContentAdapter):
             line = raw.strip()
             if not line:
                 continue
-            if line.isdigit():               
+            if line.isdigit():
                 continue
-            if self._SRT_TIME_RE.match(line):     
+            if self._SRT_TIME_RE.match(line):
                 continue
             lines.append(line)
 
@@ -66,13 +68,12 @@ class SRTAdapter(ContentAdapter):
         # 3) Clean and filter
         cleaned_sentences = []
         for s in sentences:
-            s = self._clean_line(s)      # your cleaner
+            s = self._clean_line(s)  # your cleaner
             s = " ".join(s.split())
             if len(s) > 1:
                 cleaned_sentences.append(SentenceRec(text=s, meta={}))
 
         return cleaned_sentences
-    
 
     def clean_for_words(self, sentences: List[SentenceRec]) -> List[str]:
         """
@@ -82,15 +83,18 @@ class SRTAdapter(ContentAdapter):
         for line in sentences:
             sentence = line.text
             # Remove punctuation and special characters using regex
-            sentence = re.sub(r'\p{P}+', ' ', sentence)
+            sentence = re.sub(r"\p{P}+", " ", sentence)
             sentence = sentence.lower()
             sentence = sentence.strip()
             for word in sentence.split():
-                if word and word.isalpha():  # Ensure the word is not empty and contains only alphabetic characters
+                if (
+                    word and word.isalpha()
+                ):  # Ensure the word is not empty and contains only alphabetic characters
                     cleaned_sentences.append(word)
 
         return cleaned_sentences
-    
+
+
 if __name__ == "__main__":
     adapter = SRTAdapter()
     # Provide the path to a sample SRT file

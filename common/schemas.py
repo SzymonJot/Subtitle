@@ -15,7 +15,7 @@ class ExportOptions(BaseModel):
 class BuiltDeck(BaseModel):
     # Provenance
     episode_id: str
-    analyzed_hash: str
+    job_id: str
     idempotency_key: str
     build_version: str
 
@@ -51,8 +51,9 @@ OUTPUT_FORMAT = Literal["ANKI", "QUIZLET", "CSV"]
 class BuildDeckRequest(BaseModel):
     # Request to build a deck of flashcards from analyzed episode data. #
     # ---- User-tunable knobs (the ones that define the output) ----
-    analyzed_hash: str  # hash from job table
+    job_id: str  # hash from job table
     target_coverage: Optional[float] = Field(0.90, ge=0.10, le=1.00)
+    deck_name: str
     max_cards: Optional[int] = Field(default=None, ge=1)
     max_share_per_pos: Dict[str, float] = Field(
         default_factory=dict

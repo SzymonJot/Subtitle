@@ -14,7 +14,11 @@ class Translator:
 
     def translate(self, text: str, target_lang: str, source_lang: str) -> str:
         result = self.translator.translate_text(
-            text, target_lang=target_lang, source_lang=source_lang
+            text,
+            target_lang=target_lang,
+            source_lang=source_lang,
+            tag_handling="xml",
+            ignore_tags="x",
         )
         return result.text
 
