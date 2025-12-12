@@ -26,7 +26,7 @@ from tests.integ.example_request import request
 
 ###############################################
 
-episode_data = AnalyzedEpisode(**loaded_analysis)
+episode_data = AnalyzedEpisode(episode_name="BonusFam", **loaded_analysis)
 build_request = BuildDeckRequest(**request)
 
 selected = select_candidates(episode_data, build_request)

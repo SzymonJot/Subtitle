@@ -51,7 +51,7 @@ OUTPUT_FORMAT = Literal["ANKI", "QUIZLET", "CSV"]
 class BuildDeckRequest(BaseModel):
     # Request to build a deck of flashcards from analyzed episode data. #
     # ---- User-tunable knobs (the ones that define the output) ----
-    analyzed_hash: str
+    analyzed_hash: str  # hash from job table
     target_coverage: Optional[float] = Field(0.90, ge=0.10, le=1.00)
     max_cards: Optional[int] = Field(default=None, ge=1)
     max_share_per_pos: Dict[str, float] = Field(
@@ -64,6 +64,7 @@ class BuildDeckRequest(BaseModel):
     example_settings: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
     lang_opts: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
     export_options: ExportOptions = Field(default_factory=ExportOptions)
+    target_lang_tag: str
     build_version: str
     params_schema_version: Literal["v1"] = "v1"
     requested_by: str

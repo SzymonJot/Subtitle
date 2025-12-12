@@ -29,10 +29,12 @@ def select_candidates(
     lexicon = analyzed_episode.episode_data_processed
     known_lemmas = set(req.exclude_known_lemmas or [])
     allowed_pos = set(req.target_share_per_pos.keys() or [])
+    target_lang_tag = req.target_lang_tag
 
     out: List[Candidate] = []
     for lemma, data in lexicon.items():
         pos = data.pos
+        source_lang_tag = data.lang
         if allowed_pos and pos not in allowed_pos:
             continue
         if lemma in known_lemmas:
@@ -48,6 +50,8 @@ def select_candidates(
                 forms=list(set(data.forms)),
                 freq=freq_total,
                 cov_share=cov_total,
+                source_lang_tag=source_lang_tag,
+                target_lang_tag=target_lang_tag,
             )
         )
     return out

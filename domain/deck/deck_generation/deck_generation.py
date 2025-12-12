@@ -1,5 +1,6 @@
 import hashlib
 
+from common.constants import BUILD_VERSION
 from common.schemas import BuildDeckRequest
 from domain.deck.schemas.schema import Candidate, Card, Deck, OutputFormat
 
@@ -14,16 +15,19 @@ def assemble_cards(
     Back: Translated Word + Translated Sentence
     """
     cards = []
-    for item in selection_with_examples:
-        c = Card.from_minimal(
-            lemma=item["lemma"],
-            sentence=item.get("sentence_original_lang"),
-            pos=item["pos"],
-            tags=[item["pos"]],
-            build_version=req.build_version or "v1",
+    for candidate in selection_with_examples:
+        c = Card(
+            lemma=candidate.lemma,
+            prompt=candidate.lemma,
+            answer=candidate.translated_word,
+            sentence=candidate.sentence_original_lang,
+            sentence_translation=candidate.translated_example,
+            pos=candidate.pos,
+            source_lang_tag=candidate.source_lang_tag,
+            target_lang_tag=candidate.target_lang_tag,
+            build_version=BUILD_VERSION,
         )
 
-        c.prompt = item["lemma"]
         cards.append(c)
 
     return cards

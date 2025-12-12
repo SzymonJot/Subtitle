@@ -17,3 +17,5 @@ STATUS_FAILED = "failed"
 
 # File Extensions
 EXT_SRT = ".srt"
+
+BUILD_VERSION = "v1"

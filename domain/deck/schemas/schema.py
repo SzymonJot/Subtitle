@@ -1,5 +1,3 @@
-import hashlib
-import json
 from typing import Literal, Optional
 
 from pydantic import BaseModel
@@ -37,40 +35,16 @@ class Card(BaseModel):
     Keep only the fields you actually render or filter by.
     """
 
-    id: str  # stable hash from contents
     lemma: str  # canonical key (e.g., 'gå')
     prompt: str  # what user sees first
     answer: str  # answer side
     sentence: Optional[str] = None  # example sentence (optional)
+    sentence_translation: Optional[str] = (
+        None  # example sentence translation (optional)
+    )
     pos: Optional[POS] = None  # part of speech
-
-    @staticmethod
-    def make_id(*parts: str) -> str:
-        """Stable id from relevant content."""
-        payload = "||".join(parts).encode("utf-8")
-        return hashlib.sha256(payload).hexdigest()[:16]  # short & readable
-
-    @classmethod
-    def from_minimal(
-        cls,
-        *,
-        lemma: str,
-        prompt: str,
-        answer: str,
-        sentence: Optional[str] = None,
-        pos: Optional[POS] = None,
-        build_version: str = "v1",
-        template_id: str = "basic",
-    ) -> "Card":
-        cid = cls.make_id(lemma, sentence or "", pos or "", build_version, template_id)
-        return cls(
-            id=cid,
-            lemma=lemma,
-            prompt=prompt,
-            answer=answer,
-            sentence=sentence,
-            pos=pos,
-        )
+    source_lang_tag: Optional[str] = None
+    target_lang_tag: Optional[str] = None
 
 
 class Deck(BaseModel):
@@ -78,52 +52,12 @@ class Deck(BaseModel):
     Minimal deck with just enough metadata to cache/export and show quick stats.
     """
 
-    episode_id: str
+    id: str
+    episode_name: str
     analyzed_hash: str
     build_version: str
-    format: OutputFormat = "anki"
-
-    cards: list[Card]
-
-    # quick stats / cache hints
+    # quick stats
     card_count: int
-    unique_lemmas: int
-    achieved_coverage: float = 0.0  # 0..1 (fill if you compute it upstream)
-    idempotency_key: str  # hash of (analyzed_hash + knobs/version)
+    achieved_coverage: float = 0.0
+    stopped_reason: str = ""
     target_lang_back: bool = True
-
-    @staticmethod
-    def make_idempotency_key(*parts: str) -> str:
-        payload = json.dumps(parts, ensure_ascii=False, sort_keys=False).encode("utf-8")
-        return hashlib.sha256(payload).hexdigest()
-
-    @classmethod
-    def build(
-        cls,
-        *,
-        episode_id: str,
-        analyzed_hash: str,
-        build_version: str,
-        out_format: OutputFormat,
-        cards: list[Card],
-        achieved_coverage: float = 0.0,
-        knobs_fingerprint: str = "",  # e.g., dump of BuildDeckRequest knobs you consider material
-    ) -> "Deck":
-        # quick stats
-        card_count = len(cards)
-        unique_lemmas = len({c.lemma for c in cards})
-
-        # idem key ties cache to analyzed payload + knobs + version
-        idem = cls.make_idempotency_key(analyzed_hash, knobs_fingerprint, build_version)
-
-        return cls(
-            episode_id=episode_id,
-            analyzed_hash=analyzed_hash,
-            build_version=build_version,
-            format=out_format,
-            cards=cards,
-            card_count=card_count,
-            unique_lemmas=unique_lemmas,
-            achieved_coverage=achieved_coverage,
-            idempotency_key=idem,
-        )

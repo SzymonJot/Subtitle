@@ -1,6 +1,6 @@
 from collections import Counter, defaultdict
 from math import floor
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from domain.deck.schemas.schema import Candidate
 
@@ -129,7 +129,7 @@ def pick_until_target(
     ] = None,  # soft targets (normalized)
     hysteresis_eps: float = 0.02,  # ignore tiny needs near boundary
     score_gap_delta: float = 0.15,  # allow global best if it's ≥15% higher than the needed head
-) -> Tuple[list[Candidate], dict]:
+) -> Tuple[list[Candidate], dict[str, Any]]:
     """
     POS-aware greedy picker that respects hard caps and optionally steers toward a target mix.
     Stops at target_coverage or max_cards, or when candidates are exhausted.

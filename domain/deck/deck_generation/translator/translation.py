@@ -152,17 +152,17 @@ def _cache_translation(
             "sentence_org_lang": candidate.sentence_original_lang,
             "word_target_lang": candidate.translated_word,
             "sentence_target_lang": candidate.translated_example,
-            "org_lang": candidate.source_lang,
-            "target_lang": candidate.target_lang,
+            "org_lang": candidate.source_lang_tag,
+            "target_lang": candidate.target_lang_tag,
         }
 
         try:
             deck_io.upsert_cache_translation([entry])
         except Exception as e:
-            print(f"Failed to cache translation: {e}")
+            raise Exception(f"Failed to cache translation: {e}")
     else:
-        print(
-            f"Failed to translate {candidate.form_original_lang} in {candidate.sentence_original_lang}"
+        raise Exception(
+            f"Candidate with empty translation: {candidate.form_original_lang} in {candidate.sentence_original_lang}"
         )
 
 
@@ -183,7 +183,6 @@ def translate_selection(
     for candidate in candidates_to_translate:
         form = candidate.form_original_lang
         sentence = candidate.sentence_original_lang
-
         sentence_tagged = _tag_first(sentence, form)
 
         try:
@@ -192,6 +191,7 @@ def translate_selection(
                 target_lang=candidate.target_lang_tag,
                 source_lang=candidate.source_lang_tag,
             )
+
         except deepl.TooManyRequestsException:
             time.sleep(3)
             res = translator.translate(
@@ -200,6 +200,10 @@ def translate_selection(
                 source_lang=candidate.source_lang_tag,
             )
 
+        if res == "":
+            print(
+                f"Failed to translate {candidate.form_original_lang} in {candidate.sentence_original_lang}"
+            )
         target_lang_sentence = res
         target_lang_word = _extract_term(target_lang_sentence)
 
@@ -208,5 +212,5 @@ def translate_selection(
         try:
             _cache_translation(candidate, deck_io)
         except Exception as e:
-            print(f"Failed to cache translation: {e}")
+            raise Exception(f"Failed to cache translation: {e}")
     return candidates_cached + candidates_to_translate
