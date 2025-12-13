@@ -13,27 +13,28 @@ from common.constants import (
 from domain.nlp.adapter_factory import AdapterFactory
 from domain.nlp.run_episode_analysis import process_episode
 from infra.supabase.jobs_repo import SBJobsIO
-from pipelines.jobs_queue import job_queue
 
 
-def register_job(job_id: str, file: bytes):
+def register_job(job_id: str, file: bytes, episode_name: str):
+    logging.info(f"Registering job: {job_id}")
     in_path = f"{BUCKET_UPLOADS}/{job_id}"
     jobs_table = TABLE_JOBS
     sb_jobs_io = SBJobsIO()
-    sb_jobs_io.upload_file(BUCKET_RESULTS, file, job_id)
+    sb_jobs_io.upload_file(BUCKET_UPLOADS, file, job_id)
     sb_jobs_io.insert_job(
         job_id=job_id,
         in_path=in_path,
         jobs_table=jobs_table,
         status=STATUS_QUEUED,
-        params={"file_type": "srt", "language": "sv"},
+        params={"file_type": "srt", "language": "sv", "episode_name": episode_name},
     )
-    job_queue.enqueue(run_analysis_pipeline, job_id)
+
+    # job_queue.enqueue(run_analysis_pipeline, job_id)
 
     return job_id
 
 
-def run_analysis_pipeline(job_id: str) -> str:
+def run_analysis_pipeline(job_id: str) -> dict:
     sb_jobs_io = SBJobsIO()
     try:
         # Get row from supabase for this job id

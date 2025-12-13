@@ -121,12 +121,12 @@ def _find_cached_translation_batch(
 def _tag_first(s, target):
     # case-insensitive, whole-word; preserves original casing in the sentence
     pattern = re.compile(rf"\b{re.escape(target)}\b", flags=re.IGNORECASE)
-    s = pattern.sub(lambda m: "<x>" + m.group(0) + "</x>", s, count=1)
+    s = pattern.sub(lambda m: "<i>" + m.group(0) + "</i>", s, count=1)
     return s
 
 
 def _extract_term(target_text: str) -> str:
-    a, b = target_text.find("<x>"), target_text.find("</x>")
+    a, b = target_text.find("<i>"), target_text.find("</i>")
     if a != -1 and b != -1 and b > a:
         return target_text[a + 3 : b]
     return ""
@@ -178,7 +178,8 @@ def translate_selection(
     candidates_cached, candidates_to_translate = _find_cached_translation_batch(
         selection, deck_io
     )
-
+    logging.info(f"Cached {len(candidates_cached)} candidates")
+    logging.info(f"To translate {len(candidates_to_translate)} candidates")
     for candidate in candidates_to_translate:
         form = candidate.form_original_lang
         sentence = candidate.sentence_original_lang

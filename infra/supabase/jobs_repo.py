@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from typing import Any, Dict, List
 
@@ -56,6 +57,7 @@ class SBJobsIO:
 
     def upload_file(self, bucket_name: str, file: Any, name: str):
         self.sb.storage.from_(bucket_name).upload(name, file)
+        logging.info(f"Uploaded file {name} to bucket {bucket_name}")
 
     def download_analysis(self, job_id: str) -> Any:
         output_path = (

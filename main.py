@@ -1,28 +1,18 @@
-# uvicorn - server to post and run 
-# uvicorn api.main:app --reload  
+# uvicorn - server to post and run
+# uvicorn api.main:app --reload
+import logging
 
+logging.basicConfig(level=logging.INFO)
 
 if __name__ == "__main__":
     import uvicorn
-    from api.app import create_job
-    uvicorn.run("api.app:app", host="0.0.0.0", port=8000, reload = True)
-    
 
-from api.app import create_job
-with open("tests/ep1.srt", "rb") as f:
-    data = f.read()
-print('finished')
-
-
-
-
-
+    uvicorn.run("api.app:app", host="0.0.0.0", port=8000, reload=True, log_level="info")
 
 
 # class Item(BaseModel):
 #     text: str = None
 #     is_done: bool = False
-
 
 
 # @app.get('/')

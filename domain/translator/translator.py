@@ -18,7 +18,8 @@ class Translator:
             target_lang=target_lang,
             source_lang=source_lang,
             tag_handling="xml",
-            ignore_tags="x",
+            # outline_detection=True,
+            splitting_tags=["i"],
         )
         return result.text
 

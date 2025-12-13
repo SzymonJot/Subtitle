@@ -42,7 +42,7 @@ class Card(BaseModel):
     sentence_translation: Optional[str] = (
         None  # example sentence translation (optional)
     )
-    pos: Optional[POS] = None  # part of speech
+    pos: Optional[str] = None  # part of speech
     source_lang_tag: Optional[str] = None
     target_lang_tag: Optional[str] = None
 

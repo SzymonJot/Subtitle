@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional
 
-from common.schemas import BuildDeckRequest
+from common.schemas import BuildDeckRequest, PreviewBuildDeckRequest
 from domain.deck.deck_generation.candidates_picker import pick_until_target
 from domain.deck.schemas.schema import Candidate
 from domain.nlp.lexicon.schema import AnalyzedEpisode
@@ -20,7 +20,7 @@ from domain.nlp.lexicon.schema import AnalyzedEpisode
 
 
 def select_candidates(
-    analyzed_episode: AnalyzedEpisode, req: BuildDeckRequest
+    analyzed_episode: AnalyzedEpisode, req: BuildDeckRequest | PreviewBuildDeckRequest
 ) -> List[Candidate]:
     """
     Select candidates from the lexicon based on the request parameters.
@@ -58,7 +58,7 @@ def select_candidates(
 
 
 def score_and_rank(
-    candidates: List[Candidate], req: BuildDeckRequest
+    candidates: List[Candidate], req: BuildDeckRequest | PreviewBuildDeckRequest
 ) -> List[Candidate]:
     """
     Score and rank candidates based on request parameters.

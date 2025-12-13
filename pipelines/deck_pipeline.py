@@ -2,7 +2,7 @@ import time
 import uuid
 from typing import Any
 
-from common.schemas import BuildDeckRequest
+from common.schemas import BuildDeckRequest, PreviewBuildDeckRequest
 from core.ports import DeckIO
 from domain.deck.deck_generation.deck_generation import assemble_cards
 from domain.deck.deck_generation.lexicon_processing import (
@@ -81,7 +81,7 @@ def run_deck_pipeline(
 
 def get_preview_stats(
     analyzed_episode: AnalyzedEpisode,
-    req: BuildDeckRequest,
+    req: PreviewBuildDeckRequest,
 ) -> dict[str, Any]:
     """
     Run pipeline up to card assembly for preview.
