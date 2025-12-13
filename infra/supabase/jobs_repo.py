@@ -1,4 +1,3 @@
-import os
 from datetime import datetime
 from typing import Any, Dict, List
 
@@ -11,14 +10,14 @@ from common.constants import (
 )
 from common.supabase_client import get_client
 
-SB = get_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_KEY"])
+SB = get_client()
 
 
 class SBJobsIO:
     jobs_table = TABLE_JOBS
 
-    def __init__(self, sb):
-        self.sb = sb
+    def __init__(self):
+        self.sb = SB
 
     def get_job(self, job_id: str):
         row = self.sb.table(TABLE_JOBS).select("*").eq("id", job_id).execute().data[0]

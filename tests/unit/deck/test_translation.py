@@ -4,15 +4,15 @@ import unicodedata
 from unittest.mock import MagicMock, patch
 
 from core.ports import DeckIO
-from domain.deck.deck_generation.translator.translation import (
+from domain.deck.schemas.schema import Candidate
+from domain.translator.translation import (
     _create_id_translation_cache,
     _find_cached_translation_batch,
     _look_up_translation_from_cache,
     _tag_first,
     translate_selection,
 )
-from domain.deck.deck_generation.translator.translator import Translator
-from domain.deck.schemas.schema import Candidate
+from domain.translator.translator import Translator
 
 
 def test_id_create_translation_cache():
@@ -167,11 +167,11 @@ def test_translate_selection():
 
     with (
         patch(
-            "domain.deck.deck_generation.translator.translation._find_cached_translation_batch",
+            "domain.translator.translation._find_cached_translation_batch",
             return_value=([candidate_1], [candidate_2]),
         ) as mock_find_cached_translation_batch,
         patch(
-            "domain.deck.deck_generation.translator.translation._cache_translation",
+            "domain.translator.translation._cache_translation",
             return_value=None,
         ) as mock_cache_translation,
     ):

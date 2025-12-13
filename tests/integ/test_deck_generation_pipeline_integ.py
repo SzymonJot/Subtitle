@@ -2,8 +2,8 @@ import ast
 import json
 
 from common.schemas import BuildDeckRequest
-from domain.deck.deck_generation.translator.translator import Translator
 from domain.nlp.lexicon.schema import AnalyzedEpisode
+from domain.translator.translator import Translator
 from infra.supabase.deck_repo import SBDeckIO
 from pipelines.deck_pipeline import run_deck_pipeline
 

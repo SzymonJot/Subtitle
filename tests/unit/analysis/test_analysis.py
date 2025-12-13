@@ -1,6 +1,8 @@
+from pprint import pprint
+
 from domain.nlp.content.srt_adapter import SRTAdapter
-from domain.nlp.lang.sv.lang_adapter import SVLangAdapter
-from pipelines.analysis_pipeline import process_episode
+from domain.nlp.lang.sv.sv_lang_adapter import SVLangAdapter
+from domain.nlp.run_episode_analysis import process_episode
 
 
 def test_process_episode():
@@ -8,12 +10,11 @@ def test_process_episode():
     with open(file, "rb") as f:
         episode = f.read()
 
-    import json
-
-    result_json = process_episode(
+    analyzed_episode = process_episode(
         episode, SRTAdapter(), SVLangAdapter(), episode_name="ep1"
     )
-    result = json.loads(result_json)
-    print(result)
+    result = analyzed_episode.model_dump()
+    pprint(result)
     assert result["episode_name"] == "ep1"
     assert len(result["episode_data_processed"]) > 0
+    assert 1 == 0

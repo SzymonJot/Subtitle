@@ -12,6 +12,23 @@ class SBDeckIO:
     def __init__(self):
         self.sb = get_client()
 
+    def get_cards(self, deck_id: str) -> list[Card]:
+        """
+        Return list of rows filtered by deck id.
+        """
+        res = (
+            self.sb.table(CARDS_TABLE)
+            .select(
+                "lemma, prompt, answer, sentence, sentence_translation, pos, source_lang_tag, target_lang_tag"
+            )
+            .eq("deck_id", deck_id)
+            .execute()
+        )
+
+        rows = res.data or []
+
+        return [Card(**row) for row in rows]
+
     def get_cached(self, ids: list[str]) -> dict[str, dict[str, Any]]:
         """
         Return list of rows filtered by cache id.
@@ -91,4 +108,6 @@ class SBDeckIO:
 
 
 if __name__ == "__main__":
-    pass
+    sb_deck_io = SBDeckIO()
+    cards = sb_deck_io.get_cards("121975e4-6f0c-48cf-bc54-b247c10c4224")
+    print(cards)

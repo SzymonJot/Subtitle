@@ -9,8 +9,8 @@ from typing import List, Tuple
 import deepl
 
 from core.ports import DeckIO
-from domain.deck.deck_generation.translator.translator import TRANS_VERSION, Translator
 from domain.deck.schemas.schema import Candidate
+from domain.translator.translator import TRANS_VERSION, Translator
 
 SEP_FIND = re.compile(r"[\r\n\x85\u2028\u2029]")
 

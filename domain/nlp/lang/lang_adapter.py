@@ -5,17 +5,6 @@ import regex as re
 
 from domain.nlp.lexicon.schema import LemmaBase, NLPToken, SentenceRec
 
-"""
-{
-  "<lemma>": {
-    "pos": "NOUN|ADJ|VERB|...",
-    "forms": ["<form1>", "<form2>", "..."],               
-    "examples": { "<form>": ["sent1", "sent2", "..."] },  
-    "feats": { "Gegendernder": "Com|Neut", "definite": "Ind|Def" }
-  }
-}
-"""
-
 
 class LangAdapter(ABC):
     code: str

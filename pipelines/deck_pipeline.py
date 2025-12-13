@@ -11,12 +11,10 @@ from domain.deck.deck_generation.lexicon_processing import (
     select_candidates,
     select_example,
 )
-from domain.deck.deck_generation.translator.translation import (
-    translate_selection,
-)
-from domain.deck.deck_generation.translator.translator import Translator
-from domain.deck.schemas.schema import Card, Deck
+from domain.deck.schemas.schema import Deck
 from domain.nlp.lexicon.schema import AnalyzedEpisode
+from domain.translator.translation import translate_selection
+from domain.translator.translator import Translator
 
 
 def _t():
@@ -81,12 +79,10 @@ def run_deck_pipeline(
     return stats
 
 
-def run_preview_pipeline(
+def get_preview_stats(
     analyzed_episode: AnalyzedEpisode,
     req: BuildDeckRequest,
-    translator: Translator,
-    deck_io: DeckIO,
-) -> list[Card]:
+) -> dict[str, Any]:
     """
     Run pipeline up to card assembly for preview.
     """
@@ -94,21 +90,18 @@ def run_preview_pipeline(
     candidates = select_candidates(analyzed_episode, req)
 
     # 2) Score + rank
-    # For preview, we might skip expensive steps if possible, but for now run full logic
-    # We need a seed. For preview, maybe just use a constant or random?
-    # Or derive from req if possible.
-    rng_seed = 42
-    ranked = score_and_rank(candidates, req, rng_seed)
+    ranked = score_and_rank(candidates, req)
 
-    # 4) Pick until you hit coverage or cap
-    selection = pick_until_target(ranked, req)
+    # 3) Pick until you hit coverage or cap
+    _, stats = pick_until_target(
+        ranked,
+        req.max_cards,
+        req.target_coverage,
+        req.max_share_per_pos,
+        req.target_share_per_pos,
+    )
 
-    # 5) Translate
-    selection_with_tx = translate_selection(selection, translator, deck_io)
-
-    cards = assemble_cards(selection_with_tx, req)
-
-    return cards
+    return stats
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ load_dotenv()
 
 def get_client() -> Client:
     supabase: Client = create_client(
-        os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_KEY")
+        os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_SERVICE_KEY")
     )
     return supabase
 

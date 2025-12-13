@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 class ExportOptions(BaseModel):
     filename_base: Optional[str] = None  # e.g., "bonusfamiljen-s01e01"
-    include_audio: bool = False
+    include_sentence: bool = False
     add_tags_prefix: Optional[str] = None  # e.g., "SV"
     template_id: Optional[str] = None  # which card template to use
 
@@ -60,13 +60,17 @@ class BuildDeckRequest(BaseModel):
     )  # e.g., {"NOUN": 0.5, "VERB": 0.5}
     target_share_per_pos: Optional[Dict[str, float]] = Field(default_factory=dict)
     difficulty_scoring: DIFFICULTY_SCORING = "FREQ"
-    output_format: OUTPUT_FORMAT = "ANKI"
     exclude_known_lemmas: Optional[List[str]] = Field(default_factory=list)
     example_settings: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
     lang_opts: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
-    export_options: ExportOptions = Field(default_factory=ExportOptions)
     target_lang_tag: str
     build_version: str
     params_schema_version: Literal["v1"] = "v1"
     requested_by: str
     requested_at_iso: str
+
+
+class ExportDeckRequest(BaseModel):
+    deck_id: int
+    output_format: OUTPUT_FORMAT
+    export_options: ExportOptions = Field(default_factory=ExportOptions)

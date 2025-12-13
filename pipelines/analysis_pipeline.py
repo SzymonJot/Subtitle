@@ -1,76 +1,77 @@
 import logging
-import time
+import traceback
 
-from dotenv import load_dotenv
+from common.constants import (
+    BUCKET_RESULTS,
+    BUCKET_UPLOADS,
+    STATUS_FAILED,
+    STATUS_QUEUED,
+    STATUS_RUNNING,
+    STATUS_SUCCEEDED,
+    TABLE_JOBS,
+)
+from domain.nlp.adapter_factory import AdapterFactory
+from domain.nlp.run_episode_analysis import process_episode
+from infra.supabase.jobs_repo import SBJobsIO
+from pipelines.jobs_queue import job_queue
 
-from domain.nlp.content.content_adapter import ContentAdapter
-from domain.nlp.lang.lang_adapter import LangAdapter
-from domain.nlp.lexicon.schema import AnalyzedEpisode, Stats
 
-load_dotenv()
-
-
-def _t():
-    return time.perf_counter()
-
-
-def process_episode(
-    file_bytes, adapter: ContentAdapter, lang_adapter: LangAdapter, episode_name: str
-) -> bytes:
-    t0 = _t()
-
-    # 1) sentences
-    sentences = adapter.clean_for_sentence(file_bytes)
-    logging.info("Cleaned to %d sentences (%.3fs)", len(sentences), _t() - t0)
-
-    # 2) words
-    t1 = _t()
-    words = adapter.clean_for_words(sentences)
-    logging.info("Cleaned to %d words (%.3fs)", len(words), _t() - t1)
-
-    # 2.5) get words count
-    words_counted = lang_adapter.count_words(words)
-    logging.info("Counted to %d unique words (%.3fs)", len(words_counted), _t() - t1)
-
-    # 3) tokenize
-    t2 = _t()
-    tokens = lang_adapter.tokenize(words)
-    logging.info("Tokenized to %d tokens (%.3fs)", len(tokens), _t() - t2)
-
-    # 4) lemmas
-    t3 = _t()
-    lexicon = lang_adapter.build_dictionary_from_tokens(tokens, words_counted)
-    logging.info("Built lexicon with %d lemmas (%.3fs)", len(lexicon), _t() - t3)
-
-    # 5) examples (cap per lemma inside the method)
-    t4 = _t()
-    lang_adapter.attach_examples(sentences, lexicon)
-    logging.info("Attached examples (%.3fs)", _t() - t4)
-
-    # 6) finalize → JSON bytes (stable order)
-    t5 = _t()
-
-    payload = AnalyzedEpisode(
-        episode_name=episode_name,
-        episode_data_processed=lexicon,
-        stats=Stats(
-            total_tokens=sum(words_counted.values()),
-            total_types=len(words_counted),
-            total_lemas=len(lexicon),
-        ),
+def register_job(job_id: str, file: bytes):
+    in_path = f"{BUCKET_UPLOADS}/{job_id}"
+    jobs_table = TABLE_JOBS
+    sb_jobs_io = SBJobsIO()
+    sb_jobs_io.upload_file(BUCKET_RESULTS, file, job_id)
+    sb_jobs_io.insert_job(
+        job_id=job_id,
+        in_path=in_path,
+        jobs_table=jobs_table,
+        status=STATUS_QUEUED,
+        params={"file_type": "srt", "language": "sv"},
     )
+    job_queue.enqueue(run_analysis_pipeline, job_id)
 
-    json_str = payload.model_dump_json(indent=2)
-
-    total_tokens = sum(
-        sum(v.forms_freq.values()) for v in payload.episode_data_processed.values()
-    )
-    print(total_tokens)
-
-    logging.info("Finalized lexicon (%.3fs). Total: %.3fs", _t() - t5, _t() - t0)
-
-    return json_str
+    return job_id
 
 
-if __name__ == "__main__":
-    pass
+def run_analysis_pipeline(job_id: str) -> str:
+    sb_jobs_io = SBJobsIO()
+    try:
+        # Get row from supabase for this job id
+        row = sb_jobs_io.get_job(job_id)
+        in_path = row["input_path"]
+        # Fetch file
+        file_to_process = sb_jobs_io.get_storage_file(in_path)
+        # Get params
+        params = row["params"]
+        # Pass file to data pipeline
+        logging.info(f"Processing job: {job_id}")
+        sb_jobs_io.update_status(job_id, STATUS_RUNNING, 0)
+
+        adapter = AdapterFactory.create_content_adapter(params["file_type"])
+        lang_adapter = AdapterFactory.create_lang_adapter(params["language"])
+
+        analyzed_episode = process_episode(
+            file_to_process, adapter, lang_adapter, episode_name=params["episode_name"]
+        )
+
+        # Put it to bucket results
+        results_encoded = analyzed_episode.model_dump_json().encode("utf-8")
+        logging.info(f"Encoded results to {len(results_encoded)} bytes.")
+        sb_jobs_io.upload_file(BUCKET_RESULTS, results_encoded, job_id)
+        logging.info(f"Uploaded results to bucket {BUCKET_RESULTS}/{job_id}")
+        # Put result path to jobs table
+        output_path = f"{BUCKET_RESULTS}/{job_id}"
+        logging.info(f"Output path: {output_path}")
+        sb_jobs_io.update_value(TABLE_JOBS, job_id, {"output_path": output_path})
+        logging.info(f"Updated jobs table with output path: {output_path}")
+        # Set supabase to success
+        sb_jobs_io.update_status(job_id, STATUS_SUCCEEDED, 100)
+        logging.info(f"Updated status to succeeded for job: {job_id}")
+
+    except Exception:
+        sb_jobs_io.update_status(
+            job_id, STATUS_FAILED, 0, error=traceback.format_exc()[:8000]
+        )
+        logging.error(f"Failed to process job: {job_id}")
+        raise
+    return analyzed_episode.stats
