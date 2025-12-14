@@ -1,18 +1,25 @@
 import React from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+interface ActionButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+    loading?: boolean;
+    variant?: 'primary' | 'secondary' | 'ghost';
+    size?: 'sm' | 'md' | 'lg';
+    icon?: LucideIcon;
+}
 
 export default function ActionButton({
     children,
     onClick,
     disabled = false,
     loading = false,
-    variant = 'primary', // primary | secondary | ghost
-    size = 'md', // sm | md | lg
+    variant = 'primary',
+    size = 'md',
     icon: Icon,
     className,
     ...props
-}) {
+}: ActionButtonProps) {
     const variants = {
         primary: "bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-500/20",
         secondary: "bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700",

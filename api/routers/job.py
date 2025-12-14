@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, Form, HTTPException, Response
 from fastapi.datastructures import UploadFile
 
 from common.constants import EXT_SRT
@@ -15,7 +15,7 @@ sb_jobs_io = SBJobsIO()
 
 
 @router.post("/jobs", status_code=201)
-async def create_job(file: UploadFile, episode_name: str):
+async def create_job(file: UploadFile, episode_name: str = Form(...)):
     if not file.filename.lower().endswith(EXT_SRT):
         raise HTTPException(status_code=400, detail=f"Only {EXT_SRT} files")
 
