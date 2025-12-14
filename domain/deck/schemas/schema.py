@@ -8,7 +8,8 @@ class Candidate(BaseModel):
     pos: str
     forms: list[str]
     freq: int
-    cov_share: float
+    cov_share_source: float
+    cov_share_excluded: Optional[float] = None
 
     source_lang_tag: Optional[str] = None
     target_lang_tag: Optional[str] = None

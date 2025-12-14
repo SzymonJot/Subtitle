@@ -15,13 +15,31 @@ from domain.deck.schemas.schema import Deck
 from domain.nlp.lexicon.schema import AnalyzedEpisode
 from domain.translator.translation import translate_selection
 from domain.translator.translator import Translator
+from infra.supabase.deck_repo import SBDeckIO
+from infra.supabase.jobs_repo import SBJobsIO
 
 
 def _t():
     return time.perf_counter()
 
 
-def run_deck_pipeline(
+def run_deck_pipeline(request: BuildDeckRequest):
+    deck_io = SBDeckIO()
+    translator = Translator()
+    jobs_io = SBJobsIO()
+    analyzed_episode = jobs_io.download_analysis(request.job_id)
+    analyzed_episode = AnalyzedEpisode.model_validate_json(analyzed_episode)
+    return deck_pipeline(analyzed_episode, request, translator, deck_io)
+
+
+def run_preview(request: PreviewBuildDeckRequest):
+    jobs_io = SBJobsIO()
+    analyzed_episode = jobs_io.download_analysis(request.job_id)
+    analyzed_episode = AnalyzedEpisode.model_validate_json(analyzed_episode)
+    return get_preview_stats(analyzed_episode, request)
+
+
+def deck_pipeline(
     analyzed_episode: AnalyzedEpisode,
     req: BuildDeckRequest,
     translator: Translator,

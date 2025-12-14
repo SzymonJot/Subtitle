@@ -84,11 +84,6 @@ class PreviewBuildDeckRequest(BaseModel):
     exclude_known_lemmas: Optional[List[str]] = Field(default_factory=list)
     # example_settings: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
     # lang_opts: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
-    target_lang_tag: str
-    # build_version: str
-    # params_schema_version: Literal["v1"] = "v1"
-    # requested_by: str
-    # requested_at_iso: str
 
 
 class ExportDeckRequest(BaseModel):

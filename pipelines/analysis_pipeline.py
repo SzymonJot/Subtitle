@@ -1,5 +1,6 @@
 import logging
 import traceback
+import uuid
 
 from common.constants import (
     BUCKET_RESULTS,
@@ -15,7 +16,8 @@ from domain.nlp.run_episode_analysis import process_episode
 from infra.supabase.jobs_repo import SBJobsIO
 
 
-def register_job(job_id: str, file: bytes, episode_name: str):
+def register_job(file: bytes, episode_name: str):
+    job_id = str(uuid.uuid4())
     logging.info(f"Registering job: {job_id}")
     in_path = f"{BUCKET_UPLOADS}/{job_id}"
     jobs_table = TABLE_JOBS

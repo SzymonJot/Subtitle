@@ -53,7 +53,7 @@ def _bucketize_by_pos(candidates: list[Candidate]) -> dict[str, list[Candidate]]
     """Group candidates by POS. Each bucket sorted by score descending; drop zero coverage."""
     buckets: dict[str, list[Candidate]] = defaultdict(list)
     for rc in candidates:
-        if rc.cov_share > 0.0:
+        if rc.cov_share_source > 0.0:
             buckets[rc.pos].append(rc)
     for pos, bucket in buckets.items():
         bucket.sort(key=lambda x: x.score, reverse=True)
@@ -180,7 +180,7 @@ def pick_until_target(
             buckets[g_pos].pop(0)
             picked.append(g_item)
             pos_counts[g_pos] += 1
-            coverage = min(1.0, coverage + g_item.cov_share)
+            coverage = min(1.0, coverage + g_item.cov_share_source)
             continue
 
         # --- Choose POS: soft need if provided; otherwise global best ---
@@ -215,7 +215,7 @@ def pick_until_target(
         item = buckets[chosen_pos].pop(0)
         picked.append(item)
         pos_counts[chosen_pos] += 1
-        coverage = min(1.0, coverage + item.cov_share)
+        coverage = min(1.0, coverage + item.cov_share_source)
 
     report = {
         "picked_count": len(picked),

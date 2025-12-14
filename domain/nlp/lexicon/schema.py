@@ -29,6 +29,7 @@ class LemmaBase(BaseModel):
     forms_cov: Dict[str, float] = Field(
         default_factory=dict
     )  # per-form coverage share (0..1)
+    to_learn: bool = Field(default=True)
 
 
 class LemmaSV(LemmaBase):

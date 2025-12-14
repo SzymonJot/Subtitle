@@ -18,7 +18,7 @@ def assemble_cards(
     for candidate in selection_with_examples:
         c = Card(
             lemma=candidate.lemma,
-            prompt=candidate.lemma,
+            prompt=candidate.form_original_lang,
             answer=candidate.translated_word,
             sentence=candidate.sentence_original_lang,
             sentence_translation=candidate.translated_example,

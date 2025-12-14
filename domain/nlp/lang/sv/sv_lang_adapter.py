@@ -4,6 +4,7 @@ from typing import Dict, List
 import stanza
 
 from domain.nlp.lang.lang_adapter import LangAdapter, NLPToken
+from domain.nlp.lang.sv.sv_not_translatable import SV_NOT_TRANSLATABLE
 from domain.nlp.lexicon.schema import LemmaSV
 
 
@@ -42,14 +43,13 @@ class SVLangAdapter(LangAdapter):
         return tokens
 
     def build_dictionary_from_tokens(
-        self, tokens: list[NLPToken], words_counted: Dict[str, int]
+        self,
+        tokens: list[NLPToken],
+        words_counted: Dict[str, int],
+        not_translatable: list[str] = SV_NOT_TRANSLATABLE,
     ) -> Dict[str, LemmaSV]:
         # Implement Swedish-specific dictionary building logic here
         # Example: Group tokens by lemma and aggregate forms and features
-        print("words unique")
-        print(len(words_counted))
-        print("all words")
-        print(sum(words_counted.values()))
         test = 0
         lexicon = {}
         for token in tokens:
@@ -61,6 +61,7 @@ class SVLangAdapter(LangAdapter):
                     artikel=token.other.get("artikel") if token.other else None,
                     forms_freq={},
                     lang="sv",
+                    to_learn=token.lemma not in not_translatable,
                 )
 
             lexicon[token.lemma].forms.append(token.form)
@@ -79,16 +80,7 @@ class SVLangAdapter(LangAdapter):
             lexicon[token.lemma].forms = list(
                 set(lexicon[token.lemma].forms)
             )  # Ensure unique forms
-        print("Accumulated nominators")
-        print(test)
-        print("Denominotrs")
-        print(sum(words_counted.values()))
-        print("Sum")
 
-        print(sum(sum(v.forms_cov.values()) for v in lexicon.values()))
-        logging.info(
-            f"Built lexicon with {len(lexicon)} lemmas from {len(tokens)} tokens."
-        )
         return lexicon
 
 
