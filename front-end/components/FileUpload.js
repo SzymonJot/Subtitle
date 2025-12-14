@@ -27,9 +27,9 @@ export default function FileUpload({ file, onFileSelect, disabled }) {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    
+
     if (disabled) return;
-    
+
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
       const droppedFile = files[0];
@@ -64,9 +64,9 @@ export default function FileUpload({ file, onFileSelect, disabled }) {
       className={cn(
         "relative border-2 border-dashed rounded-xl transition-all duration-200 cursor-pointer",
         "group",
-        isDragging 
-          ? "border-violet-500 bg-violet-500/10" 
-          : file 
+        isDragging
+          ? "border-violet-500 bg-violet-500/10"
+          : file
             ? "border-emerald-500/30 bg-emerald-500/5 cursor-default"
             : "border-zinc-700 hover:border-zinc-600 bg-zinc-800/30 hover:bg-zinc-800/50",
         disabled && "opacity-50 cursor-not-allowed"
@@ -80,7 +80,7 @@ export default function FileUpload({ file, onFileSelect, disabled }) {
         className="hidden"
         disabled={disabled}
       />
-      
+
       <div className="p-8 flex flex-col items-center text-center">
         {file ? (
           <>
