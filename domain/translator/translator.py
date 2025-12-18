@@ -1,3 +1,4 @@
+import logging
 import os
 
 import deepl
@@ -13,6 +14,7 @@ class Translator:
         self.translator = deepl.Translator(DEEPL_AUTH_KEY)
 
     def translate(self, text: str, target_lang: str, source_lang: str) -> str:
+        logging.info(text, target_lang, source_lang)
         result = self.translator.translate_text(
             text,
             target_lang=target_lang,
@@ -21,9 +23,10 @@ class Translator:
             # outline_detection=True,
             splitting_tags=["i"],
         )
+
         return result.text
 
 
 if __name__ == "__main__":
     translator = Translator()
-    print(translator.translate("Hello", "PL", "EN"))
+    print(translator.translate("Daniel? <> <i>Är</i> bomben stor?", "EN-GB", "sv"))

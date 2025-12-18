@@ -5,7 +5,7 @@ from common.schemas import BuildDeckRequest
 from domain.nlp.lexicon.schema import AnalyzedEpisode
 from domain.translator.translator import Translator
 from infra.supabase.deck_repo import SBDeckIO
-from pipelines.deck_pipeline import run_deck_pipeline
+from pipelines.deck_pipeline import deck_pipeline
 
 
 def test_deck_pipeline():
@@ -39,7 +39,7 @@ def test_deck_pipeline():
         ignore_duplicates=True,
     ).execute()
 
-    result = run_deck_pipeline(episode_data, build_request, translator, deck_io)
+    result = deck_pipeline(episode_data, build_request, translator, deck_io)
     print(result)
     deck_id = result["deck_id"]
 

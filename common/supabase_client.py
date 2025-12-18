@@ -14,5 +14,4 @@ def get_client() -> Client:
 
 
 if __name__ == "__main__":
-    url: str = os.environ.get("SUPABASE_URL")
-    key: str = os.environ.get("SUPABASE_KEY")
+    pass

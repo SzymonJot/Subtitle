@@ -21,6 +21,8 @@ class SRTAdapter(ContentAdapter):
     )
 
     def _clean_line(self, line):
+        line = line.replace("<", " ")
+        line = line.replace(">", " ")
         line = line.replace("-", "")
         line = line.replace("...", "")
         line = line.strip()
@@ -58,6 +60,7 @@ class SRTAdapter(ContentAdapter):
                 continue
             if self._SRT_TIME_RE.match(line):
                 continue
+
             lines.append(line)
 
         text = " ".join(lines)

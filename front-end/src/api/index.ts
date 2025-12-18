@@ -1,4 +1,4 @@
-const API_BASE = '/api'; // Adjust if your API is hosted elsewhere
+const API_BASE = '/api';
 
 export async function createJob(file: File, episodeName: string): Promise<{ job_id: string }> {
     const formData = new FormData();

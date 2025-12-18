@@ -6,6 +6,8 @@ import FileUpload from '@/components/FileUpload';
 import AnalysisPreview from '@/components/AnalysisPreview';
 import { Input } from '@/components/ui/input';
 import { createJob, triggerAnalysis, fetchAnalysis, createDeck, exportDeck, downloadBlob } from '@/api';
+import { useAuth } from '../AuthProvider';
+import { supabase } from '../supabaseClient';
 
 export default function Home() {
     // State
@@ -17,6 +19,8 @@ export default function Home() {
     const [deckCreated, setDeckCreated] = useState(false);
     const [includeSentence, setIncludeSentence] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [targetLang, setTargetLang] = useState('EN-US');
+    const { session } = useAuth();
 
     // Loading states
     const [creatingJob, setCreatingJob] = useState(false);
@@ -96,7 +100,7 @@ export default function Home() {
             const result = await createDeck({
                 job_id: jobId,
                 deck_name: episodeName,
-                target_lang_tag: "EN-US",
+                target_lang_tag: targetLang,
                 build_version: "v1"
             });
             setDeckId(result.deck_id);
@@ -129,13 +133,25 @@ export default function Home() {
         setAnalysis(null);
         setDeckCreated(false);
         setError(null);
+        setTargetLang('EN-US');
     };
+    if (!session) {
+        return (
+            <div>
+                <p>You're not logged in.</p>
+                <button onClick={() => supabase.auth.signInWithOAuth({ provider: 'github' })}>
+                    Sign in with GitHub
+                </button>
+            </div>
+        );
+    }
 
     return (
+
         <div className="min-h-screen bg-[#0a0a0b] text-zinc-100">
             {/* Header */}
             <header className="border-b border-zinc-800/50">
-                <div className="max-w-3xl mx-auto px-6 py-6">
+                <div className="max-w-7xl mx-auto px-6 py-6">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-violet-500 flex items-center justify-center shadow-lg shadow-violet-500/20">
@@ -259,6 +275,24 @@ export default function Home() {
                         disabled={!analysis}
                     >
                         <div className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-zinc-400">
+                                    Target Language
+                                </label>
+                                <select
+                                    value={targetLang}
+                                    onChange={(e) => setTargetLang(e.target.value)}
+                                    disabled={deckCreated || creatingDeck}
+                                    className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20"
+                                >
+                                    <option value="DE">German (DE)</option>
+                                    <option value="EN-GB">English (GB)</option>
+                                    <option value="EN-US">English (US)</option>
+                                    <option value="ES">Spanish (ES)</option>
+                                    <option value="FR">French (FR)</option>
+                                </select>
+                            </div>
+
                             {!deckCreated ? (
                                 <ActionButton
                                     onClick={handleCreateDeck}
@@ -315,7 +349,7 @@ export default function Home() {
 
             {/* Footer */}
             <footer className="border-t border-zinc-800/50 mt-20">
-                <div className="max-w-3xl mx-auto px-6 py-6">
+                <div className="max-w-7xl mx-auto px-6 py-6">
                     <p className="text-xs text-zinc-600 text-center">
                         Persdeck MVP • Upload subtitles, create flashcards
                     </p>
