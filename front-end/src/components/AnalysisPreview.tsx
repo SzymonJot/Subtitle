@@ -2,19 +2,11 @@ import { useState } from 'react';
 import { ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// Define loose types for analysis data since we don't have the full schema yet
-interface AnalysisData {
-    words?: unknown[];
-    phrases?: unknown[];
-    sentences?: unknown[];
-    [key: string]: any;
-}
 
-interface AnalysisPreviewProps {
-    data: AnalysisData | null;
-}
 
-export default function AnalysisPreview({ data }: AnalysisPreviewProps) {
+export default function AnalysisPreview({ data }: {
+    data: Record<string, unknown> | null;
+}) {
     const [expanded, setExpanded] = useState(false);
     const [copied, setCopied] = useState(false);
 
@@ -32,20 +24,13 @@ export default function AnalysisPreview({ data }: AnalysisPreviewProps) {
 
     // Extract some stats if available
     const stats = [];
-    if (data?.words?.length) stats.push({ label: 'Words', value: data.words.length });
-    if (data?.phrases?.length) stats.push({ label: 'Phrases', value: data.phrases.length });
-    if (data?.sentences?.length) stats.push({ label: 'Sentences', value: data.sentences.length });
+
 
     return (
         <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 overflow-hidden">
             {stats.length > 0 && (
                 <div className="px-4 py-3 border-b border-zinc-800/50 flex items-center gap-6">
-                    {stats.map((stat, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                            <span className="text-xs text-zinc-500">{stat.label}</span>
-                            <span className="text-sm font-semibold text-violet-400">{String(stat.value)}</span>
-                        </div>
-                    ))}
+
                 </div>
             )}
 

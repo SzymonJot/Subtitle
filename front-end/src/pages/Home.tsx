@@ -80,10 +80,8 @@ export default function Home() {
         setError(null);
         setRunningAnalysis(true);
         try {
-            await triggerAnalysis(jobId);
+            const result = await triggerAnalysis(jobId);
             setRunningAnalysis(false);
-            setFetchingAnalysis(true);
-            const result = await fetchAnalysis(jobId);
             setAnalysis(result);
         } catch (err: any) {
             setError(err.message || String(err));
