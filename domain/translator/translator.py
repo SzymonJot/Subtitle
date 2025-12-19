@@ -1,4 +1,3 @@
-import logging
 import os
 
 import deepl
@@ -13,20 +12,29 @@ class Translator:
     def __init__(self):
         self.translator = deepl.Translator(DEEPL_AUTH_KEY)
 
-    def translate(self, text: str, target_lang: str, source_lang: str) -> str:
-        logging.info(text, target_lang, source_lang)
+    def translate(
+        self, text: list[str], target_lang: str, source_lang: str
+    ) -> list[str]:
         result = self.translator.translate_text(
             text,
             target_lang=target_lang,
             source_lang=source_lang,
             tag_handling="xml",
             # outline_detection=True,
-            splitting_tags=["i"],
         )
 
-        return result.text
+        if isinstance(result, list):
+            return [r.text for r in result]
+        else:
+            return [result.text]
 
 
 if __name__ == "__main__":
     translator = Translator()
-    print(translator.translate("Daniel? <> <i>Är</i> bomben stor?", "EN-GB", "sv"))
+    to_translate = [
+        "Jag är på väg dit nu. Sagajag tror att hon har barn, så var <i>lite</i> försiktig"
+    ]
+    res = translator.translate(to_translate, "EN-GB", "sv")
+    print(res)
+
+# -Gestern, als ich das Abendessen zubereitet habe.

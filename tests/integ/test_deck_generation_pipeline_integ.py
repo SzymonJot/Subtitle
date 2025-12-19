@@ -46,6 +46,9 @@ def test_deck_pipeline():
     saved_decks = deck_io.sb.table("decks").select("*").eq("id", deck_id).execute()
     saved_cards = deck_io.sb.table("cards").select("*").eq("deck_id", deck_id).execute()
 
+    print(result)
+    print(saved_cards)
+
     assert len(saved_cards.data) > 0
     assert len(saved_decks.data) > 0
     assert result["achieved_coverage"] > 0

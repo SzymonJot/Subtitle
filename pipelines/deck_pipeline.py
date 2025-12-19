@@ -71,7 +71,7 @@ def deck_pipeline(
         candidate_selection, req, analyzed_episode
     )
 
-    translated_candidate_selection = translate_selection(
+    translated_candidate_selection, not_translated = translate_selection(
         candidate_selection_with_examples, translator, deck_io
     )
 
@@ -80,6 +80,7 @@ def deck_pipeline(
     deck_id = str(uuid.uuid4())
 
     stats["deck_id"] = deck_id
+    stats["cand_failed_translation"] = len(not_translated)
 
     deck = Deck(
         id=deck_id,

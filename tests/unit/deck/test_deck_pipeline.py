@@ -5,9 +5,8 @@ from unittest.mock import MagicMock
 from common.schemas import BuildDeckRequest
 from core.ports import DeckIO
 from domain.nlp.lexicon.schema import AnalyzedEpisode
-from domain.translator.translation import _tag_first
 from domain.translator.translator import Translator
-from pipelines.deck_pipeline import get_preview_stats, run_deck_pipeline
+from pipelines.deck_pipeline import deck_pipeline, get_preview_stats
 
 
 def test_deck_pipeline():
@@ -28,10 +27,10 @@ def test_deck_pipeline():
     translator = MagicMock(spec=Translator)
     deck_io = MagicMock(spec=DeckIO)
 
-    translator.translate.return_value = _tag_first("translated", "translated")
+    translator.translate.side_effect = lambda texts, **kwargs: texts
     deck_io.get_cached.return_value = {}
 
-    result = run_deck_pipeline(episode_data, build_request, translator, deck_io)
+    result = deck_pipeline(episode_data, build_request, translator, deck_io)
     print(result)
     deck_io.save_deck.assert_called_once()
     deck_io.save_cards.assert_called_once()

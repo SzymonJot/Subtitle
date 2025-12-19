@@ -17,4 +17,3 @@ def test_process_episode():
     pprint(result)
     assert result["episode_name"] == "ep1"
     assert len(result["episode_data_processed"]) > 0
-    assert 1 == 0

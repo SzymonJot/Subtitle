@@ -4,7 +4,7 @@ import logging
 import re
 import time
 import unicodedata
-from typing import List, Tuple
+from typing import Tuple
 
 import deepl
 
@@ -132,91 +132,135 @@ def _extract_term(target_text: str) -> str:
     return ""
 
 
-def _cache_translation(
+def _prepare_cache_entry(
     candidate: Candidate,
-    deck_io: DeckIO,
 ):
-    if not candidate.translated_word == "":
-        # Calculate ID
-        cache_id = _create_id_translation_cache(
-            candidate.form_original_lang,
-            candidate.sentence_original_lang,
-            candidate.source_lang_tag,
-            candidate.target_lang_tag,
+    """
+    Returns a dict entry for translation cache table.
+    Expects candidate to have translated_word and translated_example populated.
+    """
+    if not candidate.translated_word:
+        raise ValueError(
+            f"Candidate with empty translation: {candidate.form_original_lang}"
         )
 
-        entry = {
-            "id": cache_id,
-            "form_org_lang": candidate.form_original_lang,
-            "sentence_org_lang": candidate.sentence_original_lang,
-            "word_target_lang": candidate.translated_word,
-            "sentence_target_lang": candidate.translated_example,
-            "org_lang": candidate.source_lang_tag,
-            "target_lang": candidate.target_lang_tag,
-        }
+    cache_id = _create_id_translation_cache(
+        candidate.form_original_lang,
+        candidate.sentence_original_lang,
+        candidate.source_lang_tag,
+        candidate.target_lang_tag,
+    )
 
-        try:
-            deck_io.upsert_cache_translation([entry])
-        except Exception as e:
-            raise Exception(f"Failed to cache translation: {e}")
+    return {
+        "id": cache_id,
+        "form_org_lang": candidate.form_original_lang,
+        "sentence_org_lang": candidate.sentence_original_lang,
+        "word_target_lang": candidate.translated_word,
+        "sentence_target_lang": candidate.translated_example,
+        "org_lang": candidate.source_lang_tag,
+        "target_lang": candidate.target_lang_tag,
+    }
+
+
+def _is_valid_translation(sentence: str) -> bool:
+    if "<i>" not in sentence or "<i></i>" in sentence:
+        return False
     else:
-        raise Exception(
-            f"Candidate with empty translation: {candidate.form_original_lang} in {candidate.sentence_original_lang}"
-        )
+        return True
 
 
 def translate_selection(
-    selection: List[Candidate],
+    selection: list[Candidate],
     translator: Translator,
     deck_io: DeckIO,
-) -> List[Candidate]:
+) -> Tuple[list[Candidate], list[Candidate]]:
     """
     Translate the selected candidates using the provided translator.
     Cache key: word: str, sentence: str, source_lang:str, target_lang:str
     """
+
+    if not selection:
+        return [], []
+
+    BULK_TRANSLATION = 40
 
     candidates_cached, candidates_to_translate = _find_cached_translation_batch(
         selection, deck_io
     )
     logging.info(f"Cached {len(candidates_cached)} candidates")
     logging.info(f"To translate {len(candidates_to_translate)} candidates")
-    for candidate in candidates_to_translate:
-        form = candidate.form_original_lang
-        sentence = candidate.sentence_original_lang
-        sentence_tagged = _tag_first(sentence, form)
-        logging.info(f"Translating {sentence_tagged}")
 
-        try:
-            res = translator.translate(
-                sentence_tagged,
-                target_lang=candidate.target_lang_tag,
-                source_lang=candidate.source_lang_tag,
-            )
-            logging.info(
-                f"Translated {candidate.form_original_lang} in {candidate.sentence_original_lang}"
-            )
+    number_to_translate = len(candidates_to_translate)
+    # In the future translation should bucket candidates with the same languages.
+    # Now languages are inferred from the first candidate.
 
-        except deepl.TooManyRequestsException:
-            time.sleep(3)
-            res = translator.translate(
-                sentence_tagged,
-                target_lang=candidate.target_lang_tag,
-                source_lang=candidate.source_lang_tag,
-            )
+    target_lang_tag = selection[0].target_lang_tag
+    source_lang_tag = selection[0].source_lang_tag
 
-        if res == "":
-            raise Exception(
-                f"Failed to translate {candidate.form_original_lang} in {candidate.sentence_original_lang}"
-            )
-        target_lang_sentence = res
-        logging.info("Translated sentence: " + target_lang_sentence)
-        target_lang_word = _extract_term(target_lang_sentence)
-        logging.info("Extracted term: " + target_lang_word)
+    not_translated_correctly = []
 
-        candidate.translated_example = target_lang_sentence
-        candidate.translated_word = target_lang_word
-        try:
-            _cache_translation(candidate, deck_io)
-        except Exception as e:
-            raise Exception(f"Failed to cache translation: {e}, Candidate: {candidate}")
-    return candidates_cached + candidates_to_translate
+    for start in range(0, number_to_translate, BULK_TRANSLATION):
+        end = min(start + BULK_TRANSLATION, number_to_translate)
+        candidate_group = candidates_to_translate[start:end]
+
+        sentences_to_translate = []
+        for candidate in candidate_group:
+            translation_input = _tag_first(
+                candidate.sentence_original_lang, candidate.form_original_lang
+            )
+            candidate.translation_input = translation_input
+            sentences_to_translate.append(translation_input)
+
+        res = None
+        for attempt in range(2):
+            try:
+                res = translator.translate(
+                    sentences_to_translate,
+                    target_lang=target_lang_tag,
+                    source_lang=source_lang_tag,
+                )
+                print(
+                    f"DEBUG: Batch {start}-{end}, inputs: {len(sentences_to_translate)}, res: {type(res)} len: {len(res) if hasattr(res, '__len__') else 'N/A'}"
+                )
+                break  # Success
+
+            except deepl.TooManyRequestsException:
+                if attempt == 1:
+                    raise
+                logging.warning("Too many requests to DeepL, waiting 3s...")
+                time.sleep(3)
+
+        if res is None:
+            raise Exception("Failed to translate: result is None")
+
+        entries_to_cache = []
+        for candidate, translated_example in zip(candidate_group, res):
+            candidate.translation_output = translated_example
+
+            if not _is_valid_translation(translated_example):
+                logging.warning(
+                    "Translation missing tags or empty: input=%r, output=%r",
+                    candidate.translation_input,
+                    translated_example,
+                )
+                not_translated_correctly.append(candidate)
+
+                candidate.translated_example = translated_example
+                candidate.translated_word = _extract_term(translated_example)
+                continue
+
+            candidate.translated_example = translated_example
+            candidate.translated_word = _extract_term(translated_example)
+
+            try:
+                entries_to_cache.append(_prepare_cache_entry(candidate))
+            except ValueError as e:
+                logging.error(f"Failed to prepare cache entry: {e}")
+
+        if entries_to_cache:
+            try:
+                deck_io.upsert_cache_translation(entries_to_cache)
+            except Exception as e:
+                logging.warning(f"Failed to batch cache translations: {e}")
+    logging.info("Not translated correctly: %r", len(not_translated_correctly))
+    return candidates_cached + candidates_to_translate, not_translated_correctly

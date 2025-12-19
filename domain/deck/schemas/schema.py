@@ -23,6 +23,9 @@ class Candidate(BaseModel):
     translated_word: Optional[str] = None
     translated_example: Optional[str] = None
 
+    translation_input: Optional[str] = None
+    translation_output: Optional[str] = None
+
 
 POS = Literal["NOUN", "VERB", "ADJ", "ADV"]
 OutputFormat = Literal["anki", "quizlet", "csv"]

@@ -9,7 +9,6 @@ from domain.translator.translation import (
     _create_id_translation_cache,
     _find_cached_translation_batch,
     _look_up_translation_from_cache,
-    _tag_first,
     translate_selection,
 )
 from domain.translator.translator import Translator
@@ -51,7 +50,7 @@ def test_look_up_translation_from_cache():
         pos="verb",
         forms=["walk", "walking"],
         freq=50,
-        cov_share=0.05,
+        cov_share_source=0.05,
         form_original_lang="walk",
         sentence_original_lang="I walk slowly.",
         source_lang_tag="en",
@@ -63,7 +62,7 @@ def test_look_up_translation_from_cache():
         pos="verb",
         forms=["speak", "speaking"],
         freq=50,
-        cov_share=0.05,
+        cov_share_source=0.05,
         form_original_lang="speak",
         sentence_original_lang="I speak slowly.",
         source_lang_tag="en",
@@ -96,7 +95,7 @@ def test_find_cached_translation_batch():
         pos="verb",
         forms=["walk", "walking"],
         freq=50,
-        cov_share=0.05,
+        cov_share_source=0.05,
         form_original_lang="walk",
         sentence_original_lang="I walk slowly.",
         source_lang_tag="en",
@@ -108,7 +107,7 @@ def test_find_cached_translation_batch():
         pos="verb",
         forms=["speak", "speaking"],
         freq=50,
-        cov_share=0.05,
+        cov_share_source=0.05,
         form_original_lang="speak",
         sentence_original_lang="I speak slowly.",
         source_lang_tag="en",
@@ -133,18 +132,20 @@ def test_find_cached_translation_batch():
 
 def test_translate_selection():
     translator = MagicMock(spec=Translator)
+    deck_io = MagicMock(spec=DeckIO)
 
     candidate_1 = Candidate(
         lemma="walk",
         pos="verb",
         forms=["walk", "walking"],
         freq=50,
-        cov_share=0.05,
+        cov_share_source=0.05,
         form_original_lang="walk",
         sentence_original_lang="I walk slowly.",
         source_lang_tag="en",
         target_lang_tag="pl",
-        translated_example="I <term>walk</term> slowly.",
+        translated_example="I <i>walk</i> slowly.",  # Note: changed to <i> for consistency with implementation
+        translated_word="walk",
     )
 
     candidate_2 = Candidate(
@@ -152,33 +153,50 @@ def test_translate_selection():
         pos="verb",
         forms=["speak", "speaking"],
         freq=50,
-        cov_share=0.05,
+        cov_share_source=0.05,
         form_original_lang="speak",
         sentence_original_lang="I speak slowly.",
         source_lang_tag="en",
         target_lang_tag="pl",
     )
-    tagged_2 = _tag_first(
-        candidate_2.sentence_original_lang, candidate_2.form_original_lang
-    )
-    translator.translate.side_effect = [tagged_2]
+    # Using <i> tags as expected by the implementation now
+    tagged_2 = "I <i>speak</i> slowly."
+    translator.translate.return_value = [tagged_2]
 
     candidates = [candidate_1, candidate_2]
 
-    with (
-        patch(
-            "domain.translator.translation._find_cached_translation_batch",
-            return_value=([candidate_1], [candidate_2]),
-        ) as mock_find_cached_translation_batch,
-        patch(
-            "domain.translator.translation._cache_translation",
-            return_value=None,
-        ) as mock_cache_translation,
+    # Mock finding cached translations: 1 is cached, 2 needs translation
+    with patch(
+        "domain.translator.translation._find_cached_translation_batch",
+        return_value=([candidate_1], [candidate_2]),
     ):
-        translated_candidates = translate_selection(
-            candidates, translator, MagicMock(spec=DeckIO)
+        translated_candidates, failed = translate_selection(
+            candidates, translator, deck_io
         )
 
     # Assertions
-    assert translated_candidates[0].translated_example == "I <term>walk</term> slowly."
+    assert len(translated_candidates) == 2
+    assert len(failed) == 0
+    assert translated_candidates[0].translated_example == "I <i>walk</i> slowly."
     assert translated_candidates[1].translated_example == tagged_2
+    assert translated_candidates[1].translated_word == "speak"
+
+    # Verify tracking fields
+    assert translated_candidates[1].translation_input == "I <i>speak</i> slowly."
+    assert translated_candidates[1].translation_output == tagged_2
+
+    # Verify batch cache was called for candidate_2
+    deck_io.upsert_cache_translation.assert_called_once()
+    cache_entries = deck_io.upsert_cache_translation.call_args[0][0]
+    assert len(cache_entries) == 1
+    assert cache_entries[0]["form_org_lang"] == "speak"
+
+
+def test_translate_selection_empty():
+    translator = MagicMock(spec=Translator)
+    deck_io = MagicMock(spec=DeckIO)
+
+    translated, failed = translate_selection([], translator, deck_io)
+
+    assert translated == []
+    assert failed == []

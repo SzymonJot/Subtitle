@@ -1,8 +1,8 @@
 # uvicorn - server to post and run
 # uvicorn api.main:app --reload
-import logging
+from common.logging import setup_logging
 
-logging.basicConfig(level=logging.INFO)
+setup_logging()
 
 if __name__ == "__main__":
     import uvicorn
