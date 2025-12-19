@@ -9,10 +9,19 @@ from domain.nlp.lexicon.schema import LemmaSV
 
 
 class SVLangAdapter(LangAdapter):
+    _nlp_pipeline = None
+
+    @classmethod
+    def _get_nlp(cls):
+        if cls._nlp_pipeline is None:
+            logging.info("Loading Stanza Swedish pipeline (first time)...")
+            cls._nlp_pipeline = stanza.Pipeline(
+                "sv", processors="tokenize,pos,lemma", tokenize_pretokenized=True
+            )
+        return cls._nlp_pipeline
+
     def __init__(self):
-        self.nlp = stanza.Pipeline(
-            "sv", processors="tokenize,pos,lemma", tokenize_pretokenized=True
-        )
+        self.nlp = self._get_nlp()
 
     def tokenize(self, words_clean: List[str]) -> List[NLPToken]:
         # Implement Swedish-specific tokenization logic here
